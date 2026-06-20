@@ -102,12 +102,43 @@ body {
   pointer-events: none;
 }
 
-/* Watermark animation */
-@keyframes watermark-pulse {
-  0%, 100% { opacity: 0.22; }
-  50% { opacity: 0.30; }
+/* ─── Watermark ──────────────────────────────────────────────
+   Tiled diagonal stamp — trải đều toàn ảnh
+──────────────────────────────────────────────────────────── */
+@keyframes watermark-breathe {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.75; }
 }
-.watermark-animate { animation: watermark-pulse 3s ease-in-out infinite; }
+
+/* Legacy class — kept for compat */
+.watermark-animate { animation: watermark-breathe 4s ease-in-out infinite; }
+
+/* Stamp text */
+.watermark-stamp-text {
+  display: block;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.90);
+  text-shadow:
+    0 1px 3px rgba(0,0,0,0.80),
+    0 0 6px rgba(0,0,0,0.60);
+  white-space: nowrap;
+  animation: watermark-breathe 5s ease-in-out infinite;
+}
+
+/* Subtle diagonal stripe layer */
+.watermark-stripe-overlay {
+  background-image: repeating-linear-gradient(
+    -25deg,
+    transparent,
+    transparent 38px,
+    rgba(255,255,255,0.03) 38px,
+    rgba(255,255,255,0.03) 40px
+  );
+  pointer-events: none;
+}
 
 /* Blue gradient hero */
 .hero-gradient {

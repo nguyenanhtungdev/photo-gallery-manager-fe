@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react'
 import Image from 'next/image'
-import { X, ChevronLeft, ChevronRight, Download, ZoomIn } from 'lucide-react'
+import { X, ChevronLeft, ChevronRight, Download } from 'lucide-react'
 import WatermarkCanvas from './WatermarkCanvas'
 import { Photo } from '@/lib/mock-data'
 
@@ -11,13 +11,10 @@ interface PhotoViewerProps {
   initialIndex: number
   onClose: () => void
   isPaid: boolean
-  clientName: string
-  clientPhone: string
-  projectId: string
 }
 
 export default function PhotoViewer({
-  photos, initialIndex, onClose, isPaid, clientName, clientPhone, projectId,
+  photos, initialIndex, onClose, isPaid,
 }: PhotoViewerProps) {
   const [current, setCurrent] = useState(initialIndex)
   const photo = photos[current]
@@ -99,28 +96,20 @@ export default function PhotoViewer({
             sizes="(max-width: 1280px) 90vw, 1024px"
             draggable={false}
             priority
+            unoptimized
           />
 
           {/* Watermark overlay (unpaid only) */}
           {!isPaid && (
             <>
-              <WatermarkCanvas
-                clientName={clientName}
-                clientPhone={clientPhone}
-                projectId={projectId}
-              />
+              <WatermarkCanvas />
               {/* Transparent click blocker */}
               <div className="absolute inset-0 z-20" onContextMenu={(e) => e.preventDefault()} />
             </>
           )}
         </div>
 
-        {/* Unpaid banner */}
-        {!isPaid && (
-          <div className="absolute bottom-0 left-0 right-0 z-30 bg-yellow-400/90 text-yellow-900 text-center py-2 text-sm font-semibold">
-            ⚠ Ảnh xem thử — Chưa thanh toán
-          </div>
-        )}
+
       </div>
 
       {/* Filename */}

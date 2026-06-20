@@ -23,6 +23,10 @@ export function formatDate(date: Date | string): string {
   })
 }
 
+export function formatCurrency(amount: number): string {
+  return `${new Intl.NumberFormat('vi-VN').format(amount)} đ`
+}
+
 export function parseUserAgent(ua: string): string {
   if (/iPhone|iPad|iOS/.test(ua)) return '📱 iOS'
   if (/Android/.test(ua)) return '📱 Android'

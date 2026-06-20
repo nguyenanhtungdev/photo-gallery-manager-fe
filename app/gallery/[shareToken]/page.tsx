@@ -3,6 +3,7 @@ import { Camera, CheckCircle2, Clock, Shield, ImageIcon, AlertTriangle, Download
 import type { Project } from '@/lib/mock-data'
 import { maskPhone } from '@/lib/utils'
 import PhotoGrid from '@/components/gallery/PhotoGrid'
+import ScreenshotGuard from '@/components/gallery/ScreenshotGuard'
 
 export default async function GalleryPage({ params }: { params: Promise<{ shareToken: string }> }) {
   const { shareToken } = await params
@@ -112,8 +113,14 @@ export default async function GalleryPage({ params }: { params: Promise<{ shareT
           </div>
         )}
 
-        {/* Photo grid */}
-        <PhotoGrid project={project} />
+        {/* Photo grid — bọc ScreenshotGuard cho ảnh chưa thanh toán */}
+        {isPaid ? (
+          <PhotoGrid project={project} />
+        ) : (
+          <ScreenshotGuard>
+            <PhotoGrid project={project} />
+          </ScreenshotGuard>
+        )}
 
         {/* Footer */}
         <div className="text-center py-6 border-t border-border">

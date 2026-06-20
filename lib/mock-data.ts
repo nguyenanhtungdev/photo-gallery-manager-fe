@@ -3,9 +3,12 @@ export type ProjectStatus = 'waiting_payment' | 'paid'
 export interface Photo {
   id: string
   projectId: string
+  storageKey?: string
   filename: string
-  previewUrl: string   // low-quality preview
-  originalUrl: string  // high-quality original
+  previewUrl: string
+  originalUrl: string
+  contentType?: string
+  fileSize?: number
   width: number
   height: number
 }
@@ -26,6 +29,7 @@ export interface Project {
   clientPhone: string
   shareToken: string
   status: ProjectStatus
+  paidAmount?: number | null
   notes?: string
   createdAt: string
   photos: Photo[]
@@ -67,6 +71,7 @@ export const MOCK_PROJECTS: Project[] = [
     clientPhone: '0987654321',
     shareToken: 'share-token-def456',
     status: 'paid',
+    paidAmount: 3500000,
     notes: 'Chụp chân dung công ty. Đã thanh toán đủ.',
     createdAt: '2026-06-10T14:30:00Z',
     photos: Array.from({ length: 6 }, (_, i) => makePicsumPhoto('proj-002', 30, i)),
@@ -95,6 +100,7 @@ export const MOCK_PROJECTS: Project[] = [
     clientPhone: '0901234567',
     shareToken: 'share-token-jkl012',
     status: 'paid',
+    paidAmount: 2200000,
     createdAt: '2026-06-05T16:00:00Z',
     photos: Array.from({ length: 5 }, (_, i) => makePicsumPhoto('proj-004', 70, i)),
     accessLogs: [],

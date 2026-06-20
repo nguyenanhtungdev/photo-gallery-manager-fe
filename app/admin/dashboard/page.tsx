@@ -1,45 +1,86 @@
-import { MOCK_PROJECTS } from '@/lib/mock-data'
+'use client'
+
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { FolderOpen, ImageIcon, Clock, CheckCircle2, TrendingUp, ArrowRight, ChevronRight } from 'lucide-react'
-import { formatDate } from '@/lib/utils'
+import {
+  FolderOpen, ImageIcon, Clock, CheckCircle2,
+  TrendingUp, ArrowRight, ChevronRight, Camera,
+} from 'lucide-react'
+import { formatCurrency, formatDate } from '@/lib/utils'
+import { getDashboardOverview, type DashboardOverview } from '@/lib/dashboard-api'
 
 export default function DashboardPage() {
-  const total = MOCK_PROJECTS.length
-  const paid = MOCK_PROJECTS.filter((p) => p.status === 'paid').length
-  const unpaid = total - paid
-  const totalPhotos = MOCK_PROJECTS.reduce((acc, p) => acc + p.photos.length, 0)
-  const totalLogs = MOCK_PROJECTS.reduce((acc, p) => acc + p.accessLogs.length, 0)
-  const recent = [...MOCK_PROJECTS]
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, 4)
+  const [dashboard, setDashboard] = useState<DashboardOverview | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const paidPct = total > 0 ? Math.round((paid / total) * 100) : 0
+  useEffect(() => {
+    let active = true
+
+    async function loadDashboard() {
+      try {
+        const data = await getDashboardOverview()
+        if (!active) {
+          return
+        }
+
+        setDashboard(data)
+        setError(null)
+      } catch (err) {
+        if (!active) {
+          return
+        }
+
+        setError(err instanceof Error ? err.message : 'Không thể tải dashboard')
+      } finally {
+        if (active) {
+          setLoading(false)
+        }
+      }
+    }
+
+    void loadDashboard()
+    return () => {
+      active = false
+    }
+  }, [])
+
+  const summary = dashboard?.summary ?? {
+    totalProjects: 0,
+    paidProjects: 0,
+    waitingProjects: 0,
+    totalPhotos: 0,
+    totalViewSessions: 0,
+    totalPaidAmount: 0,
+    paidPercentage: 0,
+    averagePhotosPerProject: 0,
+  }
 
   const stats = [
     {
       label: 'Tổng Projects',
-      value: total,
+      value: summary.totalProjects,
       icon: FolderOpen,
       gradient: 'from-blue-500 to-blue-600',
       shadow: 'shadow-blue-200',
     },
     {
       label: 'Đã thanh toán',
-      value: paid,
+      value: summary.paidProjects,
       icon: CheckCircle2,
       gradient: 'from-emerald-500 to-green-500',
       shadow: 'shadow-emerald-200',
     },
     {
       label: 'Chờ thanh toán',
-      value: unpaid,
+      value: summary.waitingProjects,
       icon: Clock,
       gradient: 'from-amber-400 to-orange-500',
       shadow: 'shadow-amber-200',
     },
     {
       label: 'Tổng ảnh',
-      value: totalPhotos,
+      value: summary.totalPhotos,
       icon: ImageIcon,
       gradient: 'from-sky-400 to-cyan-500',
       shadow: 'shadow-sky-200',
@@ -47,123 +88,159 @@ export default function DashboardPage() {
   ]
 
   return (
-    <div className="px-4 py-5 space-y-5 max-w-2xl mx-auto md:max-w-4xl md:px-6 md:py-7">
-
-      {/* ── Desktop-only header (mobile uses layout header) ── */}
+    <div className="mx-auto max-w-4xl space-y-5 px-4 py-5 md:px-6 md:py-7">
       <div className="hidden md:block">
         <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
-        <p className="text-muted-foreground text-sm mt-0.5">Tổng quan hệ thống quản lý ảnh</p>
+        <p className="mt-0.5 text-sm text-muted-foreground">Tổng quan hệ thống quản lý ảnh</p>
       </div>
 
-      {/* ── Stats grid ── */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        {stats.map(({ label, value, icon: Icon, gradient, shadow }) => (
-          <div
-            key={label}
-            className={`relative overflow-hidden rounded-2xl bg-gradient-to-br ${gradient} p-4 text-white shadow-md ${shadow}`}
-          >
-            {/* Decorative circle */}
-            <div className="absolute -right-4 -top-4 h-20 w-20 rounded-full bg-white/10" />
-            <div className="relative">
-              <div className="mb-2.5 flex h-9 w-9 items-center justify-center rounded-xl bg-white/20 backdrop-blur-sm">
-                <Icon className="h-4.5 w-4.5" />
+      {error && (
+        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+          {error}
+        </div>
+      )}
+
+      {loading ? (
+        <div className="rounded-2xl border border-border bg-white p-12 text-center shadow-sm">
+          <div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-2 border-primary/20 border-t-primary" />
+          <p className="text-sm text-muted-foreground">Đang tải dữ liệu dashboard...</p>
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            {stats.map(({ label, value, icon: Icon, gradient, shadow }) => (
+              <div
+                key={label}
+                className={`relative overflow-hidden rounded-2xl bg-gradient-to-br ${gradient} p-4 text-white shadow-md ${shadow}`}
+              >
+                <div className="absolute -right-4 -top-4 h-20 w-20 rounded-full bg-white/10" />
+                <div className="relative">
+                  <div className="mb-2.5 flex h-9 w-9 items-center justify-center rounded-xl bg-white/20 backdrop-blur-sm">
+                    <Icon className="h-4.5 w-4.5" />
+                  </div>
+                  <p className="text-3xl font-bold leading-none">{value}</p>
+                  <p className="mt-1 text-[11px] font-medium leading-snug text-white/75">{label}</p>
+                </div>
               </div>
-              <p className="text-3xl font-bold leading-none">{value}</p>
-              <p className="mt-1 text-[11px] font-medium text-white/75 leading-snug">{label}</p>
+            ))}
+          </div>
+
+          <div className="rounded-2xl border border-border bg-white p-4 shadow-sm">
+            <div className="mb-1.5 flex items-center justify-between">
+              <p className="text-sm font-semibold text-foreground">Tỉ lệ thanh toán</p>
+              <span className="text-sm font-bold text-primary">{summary.paidPercentage}%</span>
+            </div>
+            <div className="h-2.5 w-full overflow-hidden rounded-full bg-secondary">
+              <div
+                className="hero-gradient h-2.5 rounded-full transition-all duration-700"
+                style={{ width: `${summary.paidPercentage}%` }}
+              />
+            </div>
+            <div className="mt-2 flex justify-between text-xs">
+              <span className="flex items-center gap-1 font-medium text-emerald-600">
+                <CheckCircle2 className="h-3 w-3" /> {summary.paidProjects} đã thanh toán
+              </span>
+              <span className="flex items-center gap-1 font-medium text-amber-600">
+                <Clock className="h-3 w-3" /> {summary.waitingProjects} chờ thanh toán
+              </span>
             </div>
           </div>
-        ))}
-      </div>
 
-      {/* ── Payment progress ── */}
-      <div className="rounded-2xl border border-border bg-white p-4 shadow-sm">
-        <div className="mb-1.5 flex items-center justify-between">
-          <p className="text-sm font-semibold text-foreground">Tỉ lệ thanh toán</p>
-          <span className="text-sm font-bold text-primary">{paidPct}%</span>
-        </div>
-        <div className="w-full bg-secondary rounded-full h-2.5 overflow-hidden">
-          <div
-            className="hero-gradient h-2.5 rounded-full transition-all duration-700"
-            style={{ width: `${paidPct}%` }}
-          />
-        </div>
-        <div className="flex justify-between text-xs mt-2">
-          <span className="text-emerald-600 font-medium flex items-center gap-1">
-            <CheckCircle2 className="h-3 w-3" /> {paid} đã thanh toán
-          </span>
-          <span className="text-amber-600 font-medium flex items-center gap-1">
-            <Clock className="h-3 w-3" /> {unpaid} chờ thanh toán
-          </span>
-        </div>
-      </div>
-
-      {/* ── Quick stats ── */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-2xl border border-border bg-white p-4 flex items-center gap-3 shadow-sm">
-          <div className="w-10 h-10 rounded-xl bg-violet-50 flex items-center justify-center flex-shrink-0">
-            <TrendingUp className="w-5 h-5 text-violet-600" />
-          </div>
-          <div>
-            <p className="text-2xl font-bold text-foreground">{totalLogs}</p>
-            <p className="text-xs text-muted-foreground">Lượt xem</p>
-          </div>
-        </div>
-        <div className="rounded-2xl border border-border bg-white p-4 flex items-center gap-3 shadow-sm">
-          <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center flex-shrink-0">
-            <ImageIcon className="w-5 h-5 text-orange-500" />
-          </div>
-          <div>
-            <p className="text-2xl font-bold text-foreground">
-              {total > 0 ? (totalPhotos / total).toFixed(1) : '0'}
-            </p>
-            <p className="text-xs text-muted-foreground">Ảnh / project</p>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Recent projects ── */}
-      <div className="overflow-hidden rounded-2xl border border-border bg-white shadow-sm">
-        <div className="flex items-center justify-between px-4 py-3.5 border-b border-border">
-          <h2 className="font-semibold text-sm text-foreground">Projects gần đây</h2>
-          <Link
-            href="/admin/projects"
-            className="text-xs text-primary font-semibold flex items-center gap-1 hover:underline"
-          >
-            Xem tất cả <ArrowRight className="w-3 h-3" />
-          </Link>
-        </div>
-        <div className="divide-y divide-border/60">
-          {recent.map((p) => (
-            <Link
-              key={p.id}
-              href={`/admin/projects/${p.id}`}
-              className="flex items-center gap-3 px-4 py-3.5 hover:bg-secondary/40 transition-colors active:bg-secondary group"
-            >
-              <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors ${
-                p.status === 'paid' ? 'bg-green-50 group-hover:bg-green-100' : 'bg-amber-50 group-hover:bg-amber-100'
-              }`}>
-                <FolderOpen className={`w-4 h-4 ${p.status === 'paid' ? 'text-green-600' : 'text-amber-500'}`} />
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 shadow-sm">
+              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-white/80">
+                <CheckCircle2 className="h-5 w-5 text-emerald-600" />
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-foreground truncate group-hover:text-primary transition-colors">
-                  {p.name}
-                </p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {p.clientName} • {p.photos.length} ảnh • {formatDate(p.createdAt)}
+              <div className="min-w-0">
+                <p className="truncate text-lg font-bold text-emerald-700">{formatCurrency(summary.totalPaidAmount)}</p>
+                <p className="text-xs text-emerald-700/80">Tổng tiền đã thu</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 rounded-2xl border border-border bg-white p-4 shadow-sm">
+              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-violet-50">
+                <TrendingUp className="h-5 w-5 text-violet-600" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-foreground">{summary.totalViewSessions}</p>
+                <p className="text-xs text-muted-foreground">Lượt xem</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 rounded-2xl border border-border bg-white p-4 shadow-sm">
+              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-orange-50">
+                <ImageIcon className="h-5 w-5 text-orange-500" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-foreground">{summary.averagePhotosPerProject}</p>
+                <p className="text-xs text-muted-foreground">Ảnh / project</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="overflow-hidden rounded-2xl border border-border bg-white shadow-sm">
+            <div className="flex items-center justify-between border-b border-border px-4 py-3.5">
+              <h2 className="text-sm font-semibold text-foreground">Projects gần đây</h2>
+              <Link
+                href="/admin/projects"
+                className="flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+              >
+                Xem tất cả <ArrowRight className="h-3 w-3" />
+              </Link>
+            </div>
+
+            {dashboard?.recentProjects.length ? (
+              <div className="divide-y divide-border/60">
+                {dashboard.recentProjects.map((project) => (
+                  <Link
+                    key={project.id}
+                    href={`/admin/projects/${project.id}`}
+                    className="group flex items-center gap-3 px-4 py-3.5 transition-colors hover:bg-secondary/40 active:bg-secondary"
+                  >
+                    <div className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl transition-colors ${
+                      project.status === 'paid'
+                        ? 'bg-green-50 group-hover:bg-green-100'
+                        : 'bg-amber-50 group-hover:bg-amber-100'
+                    }`}>
+                      <FolderOpen className={`h-4 w-4 ${project.status === 'paid' ? 'text-green-600' : 'text-amber-500'}`} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-foreground transition-colors group-hover:text-primary">
+                        {project.name}
+                      </p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {project.clientName} • {project.photoCount} ảnh • {formatDate(project.createdAt)}
+                      </p>
+                      {project.paidAmount != null ? (
+                        <p className="mt-1 text-xs font-medium text-emerald-700">
+                          Đã thu {formatCurrency(project.paidAmount)}
+                        </p>
+                      ) : null}
+                    </div>
+                    <span className={`flex-shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${
+                      project.status === 'paid'
+                        ? 'bg-emerald-50 text-emerald-700'
+                        : 'bg-amber-50 text-amber-700'
+                    }`}>
+                      {project.status === 'paid' ? 'Đã TT' : 'Chờ TT'}
+                    </span>
+                    <ChevronRight className="h-4 w-4 flex-shrink-0 text-muted-foreground/40 transition-transform group-hover:translate-x-0.5" />
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <div className="p-10 text-center">
+                <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-secondary">
+                  <Camera className="h-7 w-7 text-muted-foreground" />
+                </div>
+                <p className="font-medium text-foreground">Chưa có project nào</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Tạo project đầu tiên để bắt đầu theo dõi dashboard.
                 </p>
               </div>
-              <span className={`text-xs px-2.5 py-1 rounded-full font-semibold flex-shrink-0 ${
-                p.status === 'paid'
-                  ? 'bg-emerald-50 text-emerald-700'
-                  : 'bg-amber-50 text-amber-700'
-              }`}>
-                {p.status === 'paid' ? 'Đã TT' : 'Chờ TT'}
-              </span>
-              <ChevronRight className="w-4 h-4 text-muted-foreground/40 flex-shrink-0 transition-transform group-hover:translate-x-0.5" />
-            </Link>
-          ))}
-        </div>
-      </div>
+            )}
+          </div>
+        </>
+      )}
     </div>
   )
 }

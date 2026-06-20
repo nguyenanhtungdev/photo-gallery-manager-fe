@@ -74,7 +74,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         {/* ── Mobile gradient header ── */}
         <header
-          className="md:hidden flex-shrink-0 px-4 pt-12 pb-5"
+          className="md:hidden flex-shrink-0 px-4 pt-6 pb-5 rounded-b-3xl"
           style={{
             background: 'linear-gradient(135deg, hsl(221,83%,53%) 0%, hsl(199,89%,48%) 100%)',
           }}

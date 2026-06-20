@@ -5,7 +5,7 @@ import Image from 'next/image'
 import { Photo, Project } from '@/lib/mock-data'
 import WatermarkCanvas from './WatermarkCanvas'
 import PhotoViewer from './PhotoViewer'
-import { Download, ZoomIn, Shield, Lock } from 'lucide-react'
+import { Download, ZoomIn, Lock } from 'lucide-react'
 
 interface PhotoGridProps {
   project: Project
@@ -14,15 +14,9 @@ interface PhotoGridProps {
 function ProtectedPhotoCard({
   photo,
   onClick,
-  clientName,
-  clientPhone,
-  projectId,
 }: {
   photo: Photo
   onClick: () => void
-  clientName: string
-  clientPhone: string
-  projectId: string
 }) {
   return (
     <div
@@ -39,14 +33,11 @@ function ProtectedPhotoCard({
         className="object-cover photo-protected"
         sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
         draggable={false}
+        unoptimized
       />
 
       {/* Watermark canvas */}
-      <WatermarkCanvas
-        clientName={clientName}
-        clientPhone={clientPhone}
-        projectId={projectId}
-      />
+      <WatermarkCanvas />
 
       {/* Transparent blocker prevents right-click on image */}
       <div
@@ -89,6 +80,7 @@ function PaidPhotoCard({
         fill
         className="object-cover transition-transform duration-300 group-hover:scale-105"
         sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+        unoptimized
       />
       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
         <ZoomIn className="w-6 h-6 text-white" />
@@ -138,9 +130,6 @@ export default function PhotoGrid({ project }: PhotoGridProps) {
               key={photo.id}
               photo={photo}
               onClick={() => setViewerIndex(idx)}
-              clientName={project.clientName}
-              clientPhone={project.clientPhone}
-              projectId={project.id}
             />
           )
         )}
@@ -166,9 +155,6 @@ export default function PhotoGrid({ project }: PhotoGridProps) {
           initialIndex={viewerIndex}
           onClose={() => setViewerIndex(null)}
           isPaid={isPaid}
-          clientName={project.clientName}
-          clientPhone={project.clientPhone}
-          projectId={project.id}
         />
       )}
     </>
