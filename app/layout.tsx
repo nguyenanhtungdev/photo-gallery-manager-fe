@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   title: 'Photo Gallery Manager',
   description: 'Hệ thống quản lý ảnh chuyên nghiệp cho nhiếp ảnh gia',
 }
-
+//add
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
