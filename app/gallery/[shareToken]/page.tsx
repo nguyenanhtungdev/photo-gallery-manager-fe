@@ -12,6 +12,7 @@ import type { Project } from "@/lib/mock-data";
 import { maskPhone } from "@/lib/utils";
 import PhotoGrid from "@/components/gallery/PhotoGrid";
 import ScreenshotGuard from "@/components/gallery/ScreenshotGuard";
+import { getApiUrl, withApiKeyHeaders } from "@/lib/api-config";
 
 export default async function GalleryPage({
   params,
@@ -19,10 +20,10 @@ export default async function GalleryPage({
   params: Promise<{ shareToken: string }>;
 }) {
   const { shareToken } = await params;
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL;
   const response = await fetch(
-    `${apiUrl}/projects/share/${encodeURIComponent(shareToken)}`,
+    getApiUrl(`/projects/share/${encodeURIComponent(shareToken)}`),
     {
+      headers: withApiKeyHeaders(),
       cache: "no-store",
     },
   );

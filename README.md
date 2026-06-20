@@ -1,4 +1,15 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+This is a [Next.js](https://nextjs.org) project for the Photo Gallery Manager frontend.
+
+## Environment
+
+Create a local `.env` from `.env.example` and make sure these values are set:
+
+```bash
+NEXT_PUBLIC_API_URL=http://localhost:3001/api
+NEXT_PUBLIC_API_KEY=replace-with-api-key
+```
+
+`NEXT_PUBLIC_API_KEY` must match the backend `API_KEY` because the frontend sends it as the `x-api-key` header on API requests, similar to `chatmenow-fe`.
 
 ## Getting Started
 
