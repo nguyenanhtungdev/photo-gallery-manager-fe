@@ -1,21 +1,15 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   UserCircle, Camera, Mail, Phone, Lock, LogOut,
-  CheckCircle2, Eye, EyeOff, Bell, Shield, ChevronRight,
+  CheckCircle2, Eye, EyeOff, Shield, ChevronRight,
 } from 'lucide-react'
+import { clearSession, getStoredSession } from '@/lib/auth'
 
-/* ─── Mock admin info ─────────────────────────────────────── */
-const ADMIN = {
-  name: 'Nguyễn Tuấn Dũng',
-  email: 'admin@photogallery.vn',
-  phone: '0912 345 678',
-  role: 'Quản trị viên',
-  joinedAt: 'Tháng 1, 2026',
-  avatar: null as string | null,
-}
+const DEFAULT_PHONE = 'Chưa cập nhật'
+const ADMIN_ROLE = 'Quản trị viên'
 
 /* ─── Input field ─────────────────────────────────────────── */
 function Field({
@@ -43,7 +37,7 @@ function Field({
           value={value}
           readOnly={readOnly}
           onChange={(e) => onChange?.(e.target.value)}
-          className={`w-full pl-10 pr-${type === 'password' ? '10' : '4'} py-2.5 text-sm rounded-xl border border-border bg-white outline-none transition-all
+          className={`w-full pl-10 ${type === 'password' ? 'pr-10' : 'pr-4'} py-2.5 text-sm rounded-xl border border-border bg-white outline-none transition-all
             ${readOnly
               ? 'text-muted-foreground bg-secondary/30 cursor-default'
               : 'focus:border-primary focus:ring-2 focus:ring-primary/20'
@@ -78,8 +72,11 @@ function SectionCard({ title, children }: { title: string; children: React.React
 /* ─── Main ────────────────────────────────────────────────── */
 export default function ProfilePage() {
   const router = useRouter()
-  const [name,        setName]        = useState(ADMIN.name)
-  const [phone,       setPhone]       = useState(ADMIN.phone)
+  const [name,        setName]        = useState('')
+  const [email,       setEmail]       = useState('')
+  const [username,    setUsername]    = useState('')
+  const [phone,       setPhone]       = useState(DEFAULT_PHONE)
+  const [joinedAt,    setJoinedAt]    = useState('')
   const [currentPw,   setCurrentPw]   = useState('')
   const [newPw,       setNewPw]       = useState('')
   const [confirmPw,   setConfirmPw]   = useState('')
@@ -87,6 +84,19 @@ export default function ProfilePage() {
   const [pwSaved,     setPwSaved]     = useState(false)
   const [notifyEmail, setNotifyEmail] = useState(true)
   const [notifyView,  setNotifyView]  = useState(true)
+
+  useEffect(() => {
+    const session = getStoredSession()
+    if (!session) {
+      router.replace('/admin/login')
+      return
+    }
+
+    setName(session.user.name || session.user.username)
+    setEmail(session.user.email)
+    setUsername(session.user.username)
+    setJoinedAt(formatJoinDate(session.user.createdAt))
+  }, [router])
 
   function handleSaveInfo(e: React.FormEvent) {
     e.preventDefault()
@@ -103,10 +113,17 @@ export default function ProfilePage() {
   }
 
   function handleLogout() {
-    router.push('/admin/login')
+    clearSession()
+    router.replace('/admin/login')
   }
 
-  const initials = name.split(' ').slice(-2).map((w) => w[0]).join('').toUpperCase()
+  const initials = (name || username || 'AD')
+    .split(' ')
+    .filter(Boolean)
+    .slice(-2)
+    .map((word) => word[0])
+    .join('')
+    .toUpperCase()
 
   return (
     <div className="p-4 md:p-6 space-y-5 max-w-2xl mx-auto">
@@ -143,12 +160,12 @@ export default function ProfilePage() {
           {/* Info */}
           <div className="flex-1 min-w-0">
             <p className="font-bold text-base truncate">{name}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">{ADMIN.email}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{email}</p>
             <div className="flex items-center gap-2 mt-1.5">
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-primary/10 text-primary border border-primary/20">
-                <Shield className="w-2.5 h-2.5" /> {ADMIN.role}
+                <Shield className="w-2.5 h-2.5" /> {ADMIN_ROLE}
               </span>
-              <span className="text-[10px] text-muted-foreground">Từ {ADMIN.joinedAt}</span>
+              <span className="text-[10px] text-muted-foreground">Từ {joinedAt || 'Vừa tạo'}</span>
             </div>
           </div>
         </div>
@@ -158,7 +175,8 @@ export default function ProfilePage() {
       <SectionCard title="Thông tin cá nhân">
         <form onSubmit={handleSaveInfo} className="space-y-4">
           <Field label="Họ và tên" value={name} onChange={setName} icon={UserCircle} />
-          <Field label="Email" value={ADMIN.email} icon={Mail} readOnly />
+          <Field label="Email" value={email} icon={Mail} readOnly />
+          <Field label="Tên đăng nhập" value={username} icon={UserCircle} readOnly />
           <Field label="Số điện thoại" value={phone} onChange={setPhone} type="tel" icon={Phone} />
 
           <div className="flex items-center justify-between pt-1">
@@ -248,4 +266,12 @@ export default function ProfilePage() {
       <div className="h-2" />
     </div>
   )
+}
+
+function formatJoinDate(value: string) {
+  const date = new Date(value)
+  return new Intl.DateTimeFormat('vi-VN', {
+    month: 'long',
+    year: 'numeric',
+  }).format(date)
 }

@@ -1,32 +1,39 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { MOCK_PROJECTS, Project, ProjectStatus } from '@/lib/mock-data'
+import type { Project, ProjectStatus } from '@/lib/mock-data'
 import { formatDate, maskPhone } from '@/lib/utils'
 import {
   FolderOpen, Plus, Search, ImageIcon, Clock,
-  CheckCircle2, Copy, ExternalLink,
-  MoreHorizontal, X, Check,
+  CheckCircle2, Copy, ExternalLink, MoreHorizontal,
+  X, Check, Trash2, ChevronRight,
 } from 'lucide-react'
+import {
+  createProject,
+  deleteProject,
+  listProjects,
+  type CreateProjectInput,
+  updateProjectStatus,
+} from '@/lib/projects-api'
 
-/* ─── Dropdown menu ──────────────────────────────────────── */
 function ActionMenu({
-  projectId,
   shareToken,
   status,
+  disabled,
   onToggleStatus,
+  onDelete,
 }: {
-  projectId: string
   shareToken: string
   status: ProjectStatus
-  onToggleStatus: () => void
+  disabled: boolean
+  onToggleStatus: () => Promise<void>
+  onDelete: () => Promise<void>
 }) {
   const [open, setOpen] = useState(false)
   const [copied, setCopied] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
-  // Close on outside click
   useEffect(() => {
     function handle(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
@@ -46,124 +53,199 @@ function ActionMenu({
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-secondary hover:text-foreground transition-all"
+        className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-all hover:bg-secondary hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
         aria-label="Thêm hành động"
+        disabled={disabled}
       >
-        <MoreHorizontal className="w-4 h-4" />
+        <MoreHorizontal className="h-4 w-4" />
       </button>
 
       {open && (
-        <div className="absolute right-0 top-10 z-30 bg-white border border-border rounded-xl shadow-lg shadow-black/10 py-1.5 w-44 animate-in fade-in zoom-in-95 duration-100">
-          {/* Toggle status */}
+        <div className="absolute right-0 top-10 z-30 w-44 rounded-xl border border-border bg-white py-1.5 shadow-lg shadow-black/10 animate-in fade-in zoom-in-95 duration-100">
           <button
-            onClick={() => { onToggleStatus(); setOpen(false) }}
-            className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium hover:bg-secondary transition-colors text-left"
+            onClick={() => { void onToggleStatus(); setOpen(false) }}
+            className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-xs font-medium transition-colors hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={disabled}
           >
             {status === 'paid' ? (
-              <><Clock className="w-3.5 h-3.5 text-amber-500" /> Hoàn tác thanh toán</>
+              <><Clock className="h-3.5 w-3.5 text-amber-500" /> Hoàn tác thanh toán</>
             ) : (
-              <><CheckCircle2 className="w-3.5 h-3.5 text-green-500" /> Đánh dấu đã TT</>
+              <><CheckCircle2 className="h-3.5 w-3.5 text-green-500" /> Đánh dấu đã TT</>
             )}
           </button>
 
-          <div className="border-t border-border my-1" />
+          <div className="my-1 border-t border-border" />
 
-          {/* Copy link */}
           <button
             onClick={handleCopy}
-            className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium hover:bg-secondary transition-colors text-left"
+            className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-xs font-medium transition-colors hover:bg-secondary"
           >
             {copied ? (
-              <><Check className="w-3.5 h-3.5 text-green-500" /> <span className="text-green-600">Đã copy!</span></>
+              <><Check className="h-3.5 w-3.5 text-green-500" /> <span className="text-green-600">Đã copy!</span></>
             ) : (
-              <><Copy className="w-3.5 h-3.5 text-muted-foreground" /> Copy link chia sẻ</>
+              <><Copy className="h-3.5 w-3.5 text-muted-foreground" /> Copy link chia sẻ</>
             )}
           </button>
 
-          {/* View gallery */}
           <Link
             href={`/gallery/${shareToken}`}
             target="_blank"
             onClick={() => setOpen(false)}
-            className="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium hover:bg-secondary transition-colors"
+            className="flex w-full items-center gap-2.5 px-3.5 py-2 text-xs font-medium transition-colors hover:bg-secondary"
           >
-            <ExternalLink className="w-3.5 h-3.5 text-muted-foreground" /> Xem gallery
+            <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" /> Xem gallery
           </Link>
+
+          <div className="my-1 border-t border-border" />
+
+          <button
+            onClick={() => { void onDelete(); setOpen(false) }}
+            className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-xs font-medium text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={disabled}
+          >
+            <Trash2 className="h-3.5 w-3.5" /> Xóa thư mục
+          </button>
         </div>
       )}
     </div>
   )
 }
 
-/* ─── Status badge (clickable) ───────────────────────────── */
-function StatusBadge({ status, onClick }: { status: ProjectStatus; onClick?: (e: React.MouseEvent) => void }) {
-  const base = 'shrink-0 whitespace-nowrap inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border cursor-pointer select-none transition-all active:scale-95'
+function StatusBadge({
+  status,
+  disabled,
+  onClick,
+}: {
+  status: ProjectStatus
+  disabled: boolean
+  onClick: (e: React.MouseEvent) => void
+}) {
+  const base = 'inline-flex shrink-0 cursor-pointer select-none items-center gap-1 whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px] font-semibold transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-50'
   return status === 'paid' ? (
-    <span onClick={onClick} title="Nhấn để hoàn tác" className={`${base} bg-green-50 text-green-600 border-green-200 hover:bg-green-100`}>
-      <CheckCircle2 className="w-2.5 h-2.5" /> Đã TT
+    <span
+      onClick={disabled ? undefined : onClick}
+      title="Nhấn để hoàn tác"
+      className={`${base} border-green-200 bg-green-50 text-green-700 hover:bg-green-100`}
+    >
+      <CheckCircle2 className="h-2.5 w-2.5" /> Đã TT
     </span>
   ) : (
-    <span onClick={onClick} title="Nhấn để đánh dấu đã TT" className={`${base} bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100`}>
-      <Clock className="w-2.5 h-2.5" /> Chờ TT
+    <span
+      onClick={disabled ? undefined : onClick}
+      title="Nhấn để đánh dấu đã TT"
+      className={`${base} border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100`}
+    >
+      <Clock className="h-2.5 w-2.5" /> Chờ TT
     </span>
   )
 }
 
-/* ─── Create modal ───────────────────────────────────────── */
-function CreateProjectModal({ onClose, onCreate }: { onClose: () => void; onCreate: (p: Partial<Project>) => void }) {
-  const [form, setForm] = useState({ name: '', clientName: '', clientPhone: '', notes: '' })
+function CreateProjectModal({
+  onClose,
+  onCreate,
+}: {
+  onClose: () => void
+  onCreate: (project: CreateProjectInput) => Promise<void>
+}) {
+  const [form, setForm] = useState<CreateProjectInput>({
+    name: '',
+    clientName: '',
+    clientPhone: '',
+    notes: '',
+  })
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    onCreate(form)
-    onClose()
+    setSubmitting(true)
+    setError(null)
+    try {
+      await onCreate(form)
+      onClose()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Không thể tạo project')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl p-6 shadow-2xl">
-        <div className="sm:hidden w-10 h-1 bg-border rounded-full mx-auto mb-5" />
-        <div className="flex items-center justify-between mb-5">
+    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={submitting ? undefined : onClose} />
+      <div className="relative w-full rounded-t-3xl bg-white shadow-2xl sm:max-w-md sm:rounded-2xl">
+        {/* Handle bar */}
+        <div className="mx-auto mb-1 mt-3 h-1 w-10 rounded-full bg-border sm:hidden" />
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <h2 className="text-base font-bold">Tạo Project mới</h2>
-          <button onClick={onClose} className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center">
-            <X className="w-4 h-4 text-muted-foreground" />
+          <button
+            onClick={onClose}
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary transition-colors hover:bg-secondary/80"
+            disabled={submitting}
+          >
+            <X className="h-4 w-4 text-muted-foreground" />
           </button>
         </div>
-        <form onSubmit={handleSubmit} className="space-y-3.5">
+
+        <form onSubmit={handleSubmit} className="space-y-4 p-5">
           {[
-            { id: 'name',        label: 'Tên project',    placeholder: 'Wedding - Anh & Linh', required: true },
-            { id: 'clientName',  label: 'Tên khách hàng', placeholder: 'Nguyễn Văn A',         required: true },
-            { id: 'clientPhone', label: 'Số điện thoại',  placeholder: '0912345678',           required: true },
+            { id: 'name', label: 'Tên project', placeholder: 'Wedding - Anh & Linh', required: true },
+            { id: 'clientName', label: 'Tên khách hàng', placeholder: 'Nguyễn Văn A', required: true },
+            { id: 'clientPhone', label: 'Số điện thoại', placeholder: '0912345678', required: true },
           ].map(({ id, label, placeholder, required }) => (
             <div key={id}>
-              <label className="text-xs font-semibold text-muted-foreground block mb-1.5 uppercase tracking-wide">{label}</label>
+              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                {label}
+              </label>
               <input
                 id={id}
-                value={form[id as keyof typeof form]}
+                value={form[id as keyof CreateProjectInput] ?? ''}
                 onChange={(e) => setForm({ ...form, [id]: e.target.value })}
                 placeholder={placeholder}
                 required={required}
-                className="w-full bg-secondary/50 border border-border rounded-xl px-4 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-muted-foreground"
+                disabled={submitting}
+                className="w-full rounded-xl border border-border bg-secondary/50 px-4 py-3 text-sm outline-none transition-all placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
               />
             </div>
           ))}
+
           <div>
-            <label className="text-xs font-semibold text-muted-foreground block mb-1.5 uppercase tracking-wide">Ghi chú</label>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Ghi chú
+            </label>
             <textarea
-              value={form.notes}
+              value={form.notes ?? ''}
               onChange={(e) => setForm({ ...form, notes: e.target.value })}
               placeholder="Ghi chú thêm..."
               rows={3}
-              className="w-full bg-secondary/50 border border-border rounded-xl px-4 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-muted-foreground resize-none"
+              disabled={submitting}
+              className="w-full resize-none rounded-xl border border-border bg-secondary/50 px-4 py-3 text-sm outline-none transition-all placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
             />
           </div>
+
+          {error && (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-600">
+              {error}
+            </div>
+          )}
+
           <div className="flex gap-3 pt-1">
-            <button type="button" onClick={onClose} className="flex-1 border border-border rounded-xl py-2.5 text-sm font-medium hover:bg-secondary/50 transition-colors">
-              Huỷ
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 rounded-xl border border-border py-3 text-sm font-medium transition-colors hover:bg-secondary/50"
+              disabled={submitting}
+            >
+              Hủy
             </button>
-            <button type="submit" className="flex-1 bg-primary text-white rounded-xl py-2.5 text-sm font-semibold hover:bg-primary/90 transition-colors">
-              Tạo project
+            <button
+              type="submit"
+              className="flex-1 rounded-xl bg-primary py-3 text-sm font-semibold text-white transition-all hover:bg-primary/90 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60 shadow-sm shadow-primary/30"
+              disabled={submitting}
+            >
+              {submitting ? 'Đang tạo...' : 'Tạo project'}
             </button>
           </div>
         </form>
@@ -172,12 +254,35 @@ function CreateProjectModal({ onClose, onCreate }: { onClose: () => void; onCrea
   )
 }
 
-/* ─── Main page ──────────────────────────────────────────── */
 export default function ProjectsPage() {
-  const [projects, setProjects]         = useState<Project[]>(MOCK_PROJECTS)
-  const [search, setSearch]             = useState('')
+  const [projects, setProjects] = useState<Project[]>([])
+  const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | ProjectStatus>('all')
-  const [showCreate, setShowCreate]     = useState(false)
+  const [showCreate, setShowCreate] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [busyProjectId, setBusyProjectId] = useState<string | null>(null)
+
+  useEffect(() => {
+    let active = true
+
+    async function loadProjects() {
+      try {
+        const data = await listProjects()
+        if (!active) return
+        setProjects(data)
+        setError(null)
+      } catch (err) {
+        if (!active) return
+        setError(err instanceof Error ? err.message : 'Không thể tải danh sách project')
+      } finally {
+        if (active) setLoading(false)
+      }
+    }
+
+    void loadProjects()
+    return () => { active = false }
+  }, [])
 
   const filtered = projects.filter((p) => {
     const q = search.toLowerCase()
@@ -186,155 +291,226 @@ export default function ProjectsPage() {
     return matchSearch && matchStatus
   })
 
-  function handleCreate(data: Partial<Project>) {
-    const newProject: Project = {
-      id: `proj-${Date.now()}`,
-      name: data.name!,
-      clientName: data.clientName!,
-      clientPhone: data.clientPhone!,
-      shareToken: `share-${Math.random().toString(36).slice(2)}`,
-      status: 'waiting_payment',
-      notes: data.notes,
-      createdAt: new Date().toISOString(),
-      photos: [],
-      accessLogs: [],
-    }
-    setProjects([newProject, ...projects])
+  async function handleCreate(payload: CreateProjectInput) {
+    const newProject = await createProject(payload)
+    setProjects((curr) => [newProject, ...curr])
+    setError(null)
   }
 
-  function toggleStatus(id: string) {
-    setProjects(projects.map((p) =>
-      p.id === id ? { ...p, status: p.status === 'paid' ? 'waiting_payment' : 'paid' } : p
-    ))
+  async function handleToggleStatus(projectId: string) {
+    const current = projects.find((p) => p.id === projectId)
+    if (!current) return
+    try {
+      setBusyProjectId(projectId)
+      const nextStatus = current.status === 'paid' ? 'waiting_payment' : 'paid'
+      const updated = await updateProjectStatus(projectId, nextStatus)
+      setProjects((curr) => curr.map((p) => (p.id === projectId ? updated : p)))
+      setError(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Không thể cập nhật trạng thái project')
+    } finally {
+      setBusyProjectId(null)
+    }
+  }
+
+  async function handleDelete(projectId: string) {
+    const current = projects.find((p) => p.id === projectId)
+    if (!current) return
+    const confirmed = window.confirm(`Xóa thư mục "${current.name}"?`)
+    if (!confirmed) return
+    try {
+      setBusyProjectId(projectId)
+      await deleteProject(projectId)
+      setProjects((curr) => curr.filter((p) => p.id !== projectId))
+      setError(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Không thể xóa project')
+    } finally {
+      setBusyProjectId(null)
+    }
   }
 
   const paidCount = projects.filter((p) => p.status === 'paid').length
 
   return (
-    <div className="p-4 md:p-6 space-y-5 max-w-5xl mx-auto">
+    <div className="mx-auto max-w-5xl space-y-4 p-4 md:p-6">
 
-      {/* ── Header — desktop only (mobile uses layout gradient header) ── */}
-      <div className="hidden md:flex items-center justify-between gap-3">
+      {/* ── Desktop header ── */}
+      <div className="hidden items-center justify-between gap-3 md:flex">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2.5">
-            <span className="w-9 h-9 rounded-xl hero-gradient flex items-center justify-center shadow-sm shrink-0">
-              <FolderOpen className="w-4 h-4 text-white" />
+          <h1 className="flex items-center gap-2.5 text-2xl font-bold">
+            <span className="hero-gradient flex h-9 w-9 shrink-0 items-center justify-center rounded-xl shadow-sm shadow-primary/30">
+              <FolderOpen className="h-4 w-4 text-white" />
             </span>
             Projects
           </h1>
-          <p className="text-muted-foreground text-sm mt-1 ml-11.5">
+          <p className="ml-11.5 mt-1 text-sm text-muted-foreground">
             {projects.length} projects • {paidCount} đã thanh toán
           </p>
         </div>
         <button
           id="btn-create-project"
           onClick={() => setShowCreate(true)}
-          className="flex items-center gap-1.5 bg-primary text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-primary/90 transition-colors shadow-sm shadow-primary/30 shrink-0"
+          className="flex shrink-0 items-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-primary/30 transition-all hover:bg-primary/90 active:scale-95"
         >
-          <Plus className="w-4 h-4" /> Tạo project
+          <Plus className="h-4 w-4" /> Tạo project
         </button>
       </div>
 
-      {/* ── Mobile: only the create button (title is in layout header) ── */}
-      <div className="md:hidden flex justify-between items-center">
-        <p className="text-xs text-muted-foreground">{projects.length} projects • {paidCount} đã thanh toán</p>
+      {/* ── Mobile summary bar ── */}
+      <div className="flex items-center justify-between md:hidden">
+        <div className="flex items-center gap-2">
+          <span className="rounded-xl bg-white border border-border px-3 py-1.5 text-xs font-semibold text-foreground shadow-sm">
+            {projects.length} <span className="text-muted-foreground font-normal">projects</span>
+          </span>
+          <span className="rounded-xl bg-green-50 border border-green-200 px-3 py-1.5 text-xs font-semibold text-green-700">
+            {paidCount} <span className="font-normal">đã TT</span>
+          </span>
+        </div>
         <button
           id="btn-create-project-mobile"
           onClick={() => setShowCreate(true)}
-          className="flex items-center gap-1.5 bg-primary text-white px-3 py-2 rounded-xl text-xs font-semibold hover:bg-primary/90 transition-colors shadow-sm shadow-primary/30 shrink-0"
+          className="flex shrink-0 items-center gap-1.5 rounded-xl bg-primary px-3.5 py-2 text-xs font-semibold text-white shadow-sm shadow-primary/30 transition-all hover:bg-primary/90 active:scale-95"
         >
-          <Plus className="w-4 h-4" /> Tạo
+          <Plus className="h-4 w-4" /> Tạo mới
         </button>
       </div>
 
-      {/* ── Search + Filter ── */}
+      {/* ── Error ── */}
+      {error && (
+        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+          {error}
+        </div>
+      )}
+
+      {/* ── Search + filter ── */}
       <div className="space-y-2.5">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Tìm kiếm project, khách hàng..."
-            className="w-full bg-white border border-border rounded-xl pl-9 pr-4 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-muted-foreground"
+            className="w-full rounded-xl border border-border bg-white py-3 pl-10 pr-4 text-sm outline-none transition-all placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20 shadow-sm"
           />
         </div>
+
         <div className="flex items-center gap-2">
           {([
-            { key: 'all',             label: 'Tất cả', count: projects.length },
+            { key: 'all', label: 'Tất cả', count: projects.length },
             { key: 'waiting_payment', label: 'Chờ TT', count: projects.length - paidCount },
-            { key: 'paid',            label: 'Đã TT',  count: paidCount },
+            { key: 'paid', label: 'Đã TT', count: paidCount },
           ] as const).map(({ key, label, count }) => (
             <button
               key={key}
               onClick={() => setStatusFilter(key)}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all ${
+              className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all ${
                 statusFilter === key
                   ? 'bg-primary text-white shadow-sm shadow-primary/30'
-                  : 'bg-white border border-border text-muted-foreground hover:border-primary/40 hover:text-primary'
+                  : 'border border-border bg-white text-muted-foreground hover:border-primary/40 hover:text-primary'
               }`}
             >
               {label}
-              <span className="opacity-70">{count}</span>
+              <span className={statusFilter === key ? 'opacity-75' : 'opacity-60'}>{count}</span>
             </button>
           ))}
         </div>
       </div>
 
-      {/* ── List ── */}
+      {/* ── Project cards ── */}
       <div className="space-y-2.5">
-        {filtered.length === 0 && (
-          <div className="bg-white border border-border rounded-2xl p-12 text-center shadow-sm">
-            <div className="w-14 h-14 rounded-2xl bg-secondary flex items-center justify-center mx-auto mb-3">
-              <FolderOpen className="w-7 h-7 text-muted-foreground" />
-            </div>
-            <p className="font-medium">Không tìm thấy project nào</p>
-            <p className="text-muted-foreground text-sm mt-1">Thử thay đổi bộ lọc hoặc từ khoá</p>
+        {loading && (
+          <div className="rounded-2xl border border-border bg-white p-12 text-center shadow-sm">
+            <div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-2 border-primary/20 border-t-primary" />
+            <p className="text-sm text-muted-foreground">Đang tải danh sách project...</p>
           </div>
         )}
 
-        {filtered.map((p) => (
-          <Link
-            key={p.id}
-            href={`/admin/projects/${p.id}`}
-            className="block bg-white border border-border rounded-2xl shadow-sm hover:border-primary/30 hover:shadow-md transition-all cursor-pointer"
-          >
-            <div className="flex items-center gap-3 p-4">
-              {/* Folder icon */}
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                p.status === 'paid' ? 'bg-green-50' : 'bg-amber-50'
-              }`}>
-                <FolderOpen className={`w-4.5 h-4.5 ${p.status === 'paid' ? 'text-green-500' : 'text-amber-500'}`} />
-              </div>
-
-              {/* Info */}
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-sm truncate mb-0.5">{p.name}</p>
-                <p className="text-xs text-muted-foreground truncate">
-                  {p.clientName} • {maskPhone(p.clientPhone)}
-                </p>
-                <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
-                  <span className="flex items-center gap-1"><ImageIcon className="w-3 h-3" />{p.photos.length} ảnh</span>
-                  <span>{formatDate(p.createdAt)}</span>
-                </div>
-              </div>
-
-              {/* Right: ⋯ menu + status badge */}
-              <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.preventDefault()}>
-                <ActionMenu
-                  projectId={p.id}
-                  shareToken={p.shareToken}
-                  status={p.status}
-                  onToggleStatus={() => toggleStatus(p.id)}
-                />
-                <StatusBadge status={p.status} onClick={(e) => { e.preventDefault(); toggleStatus(p.id) }} />
-              </div>
+        {!loading && filtered.length === 0 && (
+          <div className="rounded-2xl border border-border bg-white p-12 text-center shadow-sm">
+            <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-secondary">
+              <FolderOpen className="h-7 w-7 text-muted-foreground" />
             </div>
-          </Link>
-        ))}
+            <p className="font-medium">Không tìm thấy project nào</p>
+            <p className="mt-1 text-sm text-muted-foreground">Thử thay đổi bộ lọc hoặc từ khoá</p>
+          </div>
+        )}
+
+        {!loading && filtered.map((project) => {
+          const isBusy = busyProjectId === project.id
+          const isPaid = project.status === 'paid'
+
+          return (
+            <Link
+              key={project.id}
+              href={`/admin/projects/${project.id}`}
+              className="group block cursor-pointer rounded-2xl border border-border bg-white shadow-sm transition-all hover:border-primary/30 hover:shadow-md"
+            >
+              {/* status bar */}
+              <div
+                className="h-0.5 w-full rounded-t-2xl transition-all"
+                style={{
+                  background: isPaid
+                    ? 'linear-gradient(90deg, hsl(160,84%,39%), hsl(145,63%,49%))'
+                    : 'linear-gradient(90deg, hsl(38,92%,50%), hsl(43,96%,56%))',
+                }}
+              />
+              <div className="flex items-center gap-3 p-4">
+                {/* icon */}
+                <div className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl transition-colors ${
+                  isPaid ? 'bg-green-50' : 'bg-amber-50'
+                }`}>
+                  <FolderOpen className={`h-5 w-5 ${isPaid ? 'text-green-600' : 'text-amber-500'}`} />
+                </div>
+
+                {/* content */}
+                <div className="min-w-0 flex-1">
+                  <p className="mb-0.5 truncate text-sm font-semibold group-hover:text-primary transition-colors">
+                    {project.name}
+                  </p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {project.clientName} • {maskPhone(project.clientPhone)}
+                  </p>
+                  <div className="mt-1.5 flex items-center gap-3 text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                      <ImageIcon className="h-3 w-3" />
+                      {project.photos.length} ảnh
+                    </span>
+                    <span>{formatDate(project.createdAt)}</span>
+                  </div>
+                </div>
+
+                {/* actions */}
+                <div className="flex shrink-0 items-center gap-2" onClick={(e) => e.preventDefault()}>
+                  <ActionMenu
+                    shareToken={project.shareToken}
+                    status={project.status}
+                    disabled={isBusy}
+                    onToggleStatus={() => handleToggleStatus(project.id)}
+                    onDelete={() => handleDelete(project.id)}
+                  />
+                  <StatusBadge
+                    status={project.status}
+                    disabled={isBusy}
+                    onClick={(e) => {
+                      e.preventDefault()
+                      void handleToggleStatus(project.id)
+                    }}
+                  />
+                </div>
+
+                <ChevronRight className="h-4 w-4 flex-shrink-0 text-muted-foreground/30 transition-transform group-hover:translate-x-0.5" />
+              </div>
+            </Link>
+          )
+        })}
       </div>
 
       {showCreate && (
-        <CreateProjectModal onClose={() => setShowCreate(false)} onCreate={handleCreate} />
+        <CreateProjectModal
+          onClose={() => setShowCreate(false)}
+          onCreate={handleCreate}
+        />
       )}
     </div>
   )

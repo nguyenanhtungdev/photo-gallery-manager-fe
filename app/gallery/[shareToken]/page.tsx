@@ -1,14 +1,30 @@
 import { notFound } from 'next/navigation'
 import { Camera, CheckCircle2, Clock, Shield, ImageIcon, AlertTriangle, Download } from 'lucide-react'
-import { getProjectByToken } from '@/lib/mock-data'
-import { maskPhone, formatDate } from '@/lib/utils'
+import type { Project } from '@/lib/mock-data'
+import { maskPhone } from '@/lib/utils'
 import PhotoGrid from '@/components/gallery/PhotoGrid'
 
 export default async function GalleryPage({ params }: { params: Promise<{ shareToken: string }> }) {
   const { shareToken } = await params
-  const project = getProjectByToken(shareToken)
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'
+  const response = await fetch(`${apiUrl}/projects/share/${encodeURIComponent(shareToken)}`, {
+    cache: 'no-store',
+  })
 
-  if (!project) return notFound()
+  if (response.status === 404) {
+    return notFound()
+  }
+
+  if (!response.ok) {
+    throw new Error('Khong the tai gallery')
+  }
+
+  const data = (await response.json()) as { project?: Project }
+  const project = data.project
+
+  if (!project) {
+    return notFound()
+  }
 
   const isPaid = project.status === 'paid'
 

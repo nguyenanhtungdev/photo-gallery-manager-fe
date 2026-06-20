@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Camera, LayoutDashboard, FolderOpen, ScrollText, UserCircle } from 'lucide-react'
+import { AuthGuard } from '@/components/auth/AuthGuard'
 import { cn } from '@/lib/utils'
 
 const navItems = [
@@ -22,21 +23,21 @@ const PAGE_META: Record<string, { title: string; subtitle: string }> = {
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
 
-  // Login page: no layout
-  if (pathname === '/admin/login') return <>{children}</>
+  if (pathname === '/admin/login' || pathname === '/admin/register') return <>{children}</>
 
   // Resolve current page meta (match prefix for nested routes)
   const metaKey = Object.keys(PAGE_META).find((k) => pathname.startsWith(k)) ?? '/admin/dashboard'
   const meta = PAGE_META[metaKey]
 
   return (
-    <div className="flex h-svh bg-[hsl(210,40%,98%)] overflow-hidden">
+    <AuthGuard>
+      <div className="flex h-svh bg-[hsl(210,40%,98%)] overflow-hidden">
 
       {/* ── Desktop sidebar ── */}
       <aside className="hidden md:flex flex-col w-60 bg-white border-r border-border flex-shrink-0">
         {/* Logo */}
         <div className="flex items-center gap-3 px-5 py-5 border-b border-border">
-          <div className="w-9 h-9 rounded-xl hero-gradient flex items-center justify-center">
+          <div className="w-9 h-9 rounded-xl hero-gradient flex items-center justify-center shadow-sm shadow-primary/30">
             <Camera className="w-5 h-5 text-white" />
           </div>
           <div>
@@ -73,13 +74,20 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         {/* ── Mobile gradient header ── */}
         <header
-          className="md:hidden flex-shrink-0 px-5 pt-5 pb-6"
+          className="md:hidden flex-shrink-0 px-4 pt-12 pb-5"
           style={{
             background: 'linear-gradient(135deg, hsl(221,83%,53%) 0%, hsl(199,89%,48%) 100%)',
           }}
         >
-          <p className="text-white font-bold text-2xl leading-tight">{meta.title}</p>
-          <p className="text-white/75 text-sm mt-0.5">{meta.subtitle}</p>
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center flex-shrink-0">
+              <Camera className="w-4 h-4 text-white" />
+            </div>
+            <div>
+              <p className="text-white font-bold text-xl leading-tight">{meta.title}</p>
+              <p className="text-white/70 text-xs mt-0.5">{meta.subtitle}</p>
+            </div>
+          </div>
         </header>
 
         {/* Page content */}
@@ -89,8 +97,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </div>
 
       {/* ── Mobile bottom navigation ── */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-border bottom-nav-pad">
-        <div className="flex">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-border/60 bottom-nav-pad shadow-[0_-4px_20px_rgba(0,0,0,0.06)]">
+        <div className="flex px-2">
           {navItems.map(({ href, icon: Icon, label }) => {
             const active = pathname.startsWith(href)
             return (
@@ -98,22 +106,23 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 key={href}
                 href={href}
                 className={cn(
-                  'flex-1 flex flex-col items-center gap-1 py-2.5 text-[10px] font-medium transition-colors',
+                  'flex-1 flex flex-col items-center gap-0.5 py-2 text-[10px] font-semibold transition-all duration-200',
                   active ? 'text-primary' : 'text-muted-foreground'
                 )}
               >
                 <div className={cn(
-                  'w-10 h-6 rounded-full flex items-center justify-center transition-colors',
-                  active ? 'bg-primary/10' : ''
+                  'w-11 h-7 rounded-2xl flex items-center justify-center transition-all duration-200',
+                  active ? 'bg-primary shadow-sm shadow-primary/40 scale-105' : 'hover:bg-secondary/80'
                 )}>
-                  <Icon className="w-5 h-5" />
+                  <Icon className={cn('w-4.5 h-4.5 transition-colors', active ? 'text-white' : '')} />
                 </div>
-                {label}
+                <span className={active ? 'text-primary' : ''}>{label}</span>
               </Link>
             )
           })}
         </div>
       </nav>
-    </div>
+      </div>
+    </AuthGuard>
   )
 }
