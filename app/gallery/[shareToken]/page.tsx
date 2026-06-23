@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { headers } from "next/headers";
 import {
   Camera,
   CheckCircle2,
@@ -19,10 +20,19 @@ export default async function GalleryPage({
   params: Promise<{ shareToken: string }>;
 }) {
   const { shareToken } = await params;
+  const requestHeaders = await headers();
+  const apiHeaders = withApiKeyHeaders({
+    "User-Agent": requestHeaders.get("user-agent") ?? "Anonymous visitor",
+    "X-Forwarded-For":
+      requestHeaders.get("x-forwarded-for") ??
+      requestHeaders.get("x-real-ip") ??
+      "Ẩn danh",
+    "X-Real-IP": requestHeaders.get("x-real-ip") ?? "",
+  });
   const response = await fetch(
     getApiUrl(`/projects/share/${encodeURIComponent(shareToken)}`),
     {
-      headers: withApiKeyHeaders(),
+      headers: apiHeaders,
       cache: "no-store",
     },
   );
@@ -162,4 +172,3 @@ export default async function GalleryPage({
     </div>
   );
 }
-

@@ -6,7 +6,7 @@ import type { FormEvent, MouseEvent } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import type { Project, ProjectStatus } from '@/lib/mock-data'
-import { formatCurrency, formatDate, maskPhone } from '@/lib/utils'
+import { buildCurrencySuggestions, formatCurrency, formatDate, maskPhone } from '@/lib/utils'
 import {
   FolderOpen, Plus, Search, ImageIcon, Clock,
   CheckCircle2, Copy, ExternalLink, MoreHorizontal,
@@ -572,6 +572,7 @@ function PaidAmountModal({
   const [value, setValue] = useState(project.paidAmount != null ? String(project.paidAmount) : '')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const amountSuggestions = buildCurrencySuggestions(value)
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
@@ -632,6 +633,25 @@ function PaidAmountModal({
           {value ? (
             <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700">
               {formatCurrency(Number(value))}
+            </div>
+          ) : null}
+
+          {amountSuggestions.length > 0 ? (
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-muted-foreground">Gợi ý số tiền</p>
+              <div className="flex flex-wrap gap-2">
+                {amountSuggestions.map((amount) => (
+                  <button
+                    key={amount}
+                    type="button"
+                    onClick={() => setValue(String(amount))}
+                    disabled={submitting}
+                    className="rounded-full border border-primary/20 bg-primary/5 px-3 py-1.5 text-xs font-semibold text-primary transition-all hover:border-primary/40 hover:bg-primary/10 active:scale-95 disabled:opacity-50"
+                  >
+                    {formatCurrency(amount)}
+                  </button>
+                ))}
+              </div>
             </div>
           ) : null}
 

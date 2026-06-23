@@ -1,18 +1,20 @@
 'use client'
 
-import { FolderOpen, LayoutDashboard, UserCircle2 } from 'lucide-react'
+import { Bell, FolderOpen, LayoutDashboard, UserCircle2 } from 'lucide-react'
 import { AppLayoutShell } from '@/components/app/AppLayoutShell'
 import { SessionGuard } from '@/components/auth/SessionGuard'
 
 const navItems = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { href: '/projects', icon: FolderOpen, label: 'Projects' },
+  { href: '/notifications', icon: Bell, label: 'Thông báo' },
   { href: '/profile', icon: UserCircle2, label: 'Profile' },
 ]
 
 const PAGE_META: Record<string, { title: string; subtitle: string }> = {
   '/dashboard': { title: 'Dashboard', subtitle: 'Thống kê cá nhân' },
   '/projects': { title: 'Projects', subtitle: 'Quản lý danh sách project' },
+  '/notifications': { title: 'Thông báo', subtitle: 'Lịch sử sự kiện tài khoản' },
   '/profile': { title: 'Profile', subtitle: 'Quản lý thông tin tài khoản' },
 }
 

@@ -13,8 +13,17 @@ import {
   Shield,
   ChevronRight,
   KeyRound,
+  ImageIcon,
+  Pencil,
+  X,
 } from 'lucide-react'
-import { clearSession, getStoredSession } from '@/lib/auth'
+import { clearSession, getStoredSession, updateUserSettings } from '@/lib/auth'
+import {
+  DEFAULT_IMAGE_RESIZE_WIDTH,
+  IMAGE_RESIZE_OPTIONS,
+  formatResizeSetting,
+  type ImageResizeSetting,
+} from '@/lib/image-resize'
 
 const DEFAULT_PHONE = 'Chưa cập nhật'
 
@@ -42,6 +51,196 @@ function Toggle({ value, onChange }: { value: boolean; onChange: () => void }) {
   )
 }
 
+function ImageSettingsModal({
+  currentValue,
+  draftValue,
+  onDraftChange,
+  onClose,
+  onConfirm,
+  submitting,
+}: {
+  currentValue: ImageResizeSetting
+  draftValue: ImageResizeSetting
+  onDraftChange: (value: ImageResizeSetting) => void
+  onClose: () => void
+  onConfirm: () => Promise<void>
+  submitting: boolean
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 pb-24 sm:p-4">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={submitting ? undefined : onClose} />
+
+      <div className="relative z-10 flex max-h-[calc(100svh-7rem)] w-full max-w-md flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+        <div className="flex items-center justify-between border-b border-border px-4 py-3">
+          <div>
+            <h2 className="text-base font-bold">Cấu hình ảnh share</h2>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">
+              Chọn độ phân giải preview mặc định cho các project của user này.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={submitting}
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary transition-colors hover:bg-secondary/80 disabled:opacity-50"
+          >
+            <X className="h-4 w-4 text-muted-foreground" />
+          </button>
+        </div>
+
+        <div className="flex-1 space-y-3 overflow-y-auto p-4">
+          <div className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs leading-relaxed text-blue-800">
+            Ảnh gốc vẫn giữ nguyên; khách chưa thanh toán chỉ thấy ảnh preview.
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            {IMAGE_RESIZE_OPTIONS.map((option) => (
+              <button
+                key={option.label}
+                type="button"
+                onClick={() => onDraftChange(option.value)}
+                disabled={submitting}
+                className={`relative rounded-xl border px-3 py-2.5 text-left transition-all disabled:opacity-60 ${
+                  draftValue === option.value
+                    ? 'border-primary bg-primary/10 text-primary'
+                    : 'border-border bg-white hover:bg-secondary/40'
+                }`}
+              >
+                <span className="block pr-5 text-sm font-semibold">{option.label}</span>
+                <span className="mt-0.5 block text-[11px] leading-snug text-muted-foreground">{option.description}</span>
+                <span className={`absolute right-2.5 top-2.5 h-3.5 w-3.5 rounded-full border ${
+                  draftValue === option.value ? 'border-primary bg-primary shadow-[inset_0_0_0_3px_white]' : 'border-border'
+                }`} />
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center justify-between rounded-xl bg-secondary/60 px-3 py-2 text-xs">
+            <span className="text-muted-foreground">Hiện tại: <b className="text-foreground">{formatResizeSetting(currentValue)}</b></span>
+            <span className="text-primary">Chọn: <b>{formatResizeSetting(draftValue)}</b></span>
+          </div>
+        </div>
+
+        <div className="flex gap-3 border-t border-border bg-white p-4">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={submitting}
+              className="flex-1 rounded-xl border border-border py-3 text-sm font-medium transition-colors hover:bg-secondary/50 disabled:opacity-50"
+            >
+              Hủy
+            </button>
+            <button
+              type="button"
+              onClick={() => void onConfirm()}
+              disabled={submitting || draftValue === currentValue}
+              className="flex-1 rounded-xl bg-primary py-3 text-sm font-semibold text-white shadow-sm shadow-primary/20 transition-all hover:bg-primary/90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {submitting ? 'Đang lưu...' : 'Lưu thay đổi'}
+            </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function EditProfileInfoModal({
+  initialName,
+  initialPhone,
+  email,
+  username,
+  onClose,
+  onSave,
+}: {
+  initialName: string
+  initialPhone: string
+  email: string
+  username: string
+  onClose: () => void
+  onSave: (payload: { name: string; phone: string }) => void
+}) {
+  const [draftName, setDraftName] = useState(initialName)
+  const [draftPhone, setDraftPhone] = useState(initialPhone)
+
+  function handleSubmit(event: React.FormEvent) {
+    event.preventDefault()
+    onSave({
+      name: draftName.trim(),
+      phone: draftPhone.trim() || DEFAULT_PHONE,
+    })
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 pb-24 sm:p-4">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+
+      <div className="relative z-10 w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
+        <div className="flex items-center justify-between border-b border-border px-4 py-3">
+          <div>
+            <h2 className="text-base font-bold">Sửa thông tin cá nhân</h2>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">
+              Cập nhật thông tin hiển thị trên tài khoản.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary transition-colors hover:bg-secondary/80"
+          >
+            <X className="h-4 w-4 text-muted-foreground" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4 p-4">
+          <Field label="Họ và tên" icon={UserCircle}>
+            <input
+              value={draftName}
+              onChange={(event) => setDraftName(event.target.value)}
+              className="w-full rounded-xl border border-border bg-secondary/40 py-2.5 pl-9 pr-3 text-sm outline-none transition-all focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/15"
+            />
+          </Field>
+
+          <Field label="Số điện thoại" icon={Phone}>
+            <input
+              value={draftPhone}
+              onChange={(event) => setDraftPhone(event.target.value)}
+              type="tel"
+              className="w-full rounded-xl border border-border bg-secondary/40 py-2.5 pl-9 pr-3 text-sm outline-none transition-all focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/15"
+            />
+          </Field>
+
+          <div className="grid grid-cols-1 gap-3 rounded-xl bg-secondary/40 p-3 text-sm sm:grid-cols-2">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Email</p>
+              <p className="mt-1 truncate font-medium text-foreground">{email}</p>
+            </div>
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Tên đăng nhập</p>
+              <p className="mt-1 truncate font-medium text-foreground">{username}</p>
+            </div>
+          </div>
+
+          <div className="flex gap-3 border-t border-border pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 rounded-xl border border-border py-3 text-sm font-medium transition-colors hover:bg-secondary/50"
+            >
+              Hủy
+            </button>
+            <button
+              type="submit"
+              className="flex-1 rounded-xl bg-primary py-3 text-sm font-semibold text-white shadow-sm shadow-primary/20 transition-all hover:bg-primary/90 active:scale-[0.98]"
+            >
+              Lưu thay đổi
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 export function ProfilePage({
   loginPath,
   logoutPath,
@@ -60,6 +259,15 @@ export function ProfilePage({
   const [role] = useState<'admin' | 'user'>(sessionUser?.role ?? 'user')
   const [joinedAt] = useState(sessionUser ? formatJoinDate(sessionUser.createdAt) : '')
   const [infoSaved, setInfoSaved] = useState(false)
+  const [showEditInfoModal, setShowEditInfoModal] = useState(false)
+  const [settingsSaved, setSettingsSaved] = useState(false)
+  const [settingsError, setSettingsError] = useState<string | null>(null)
+  const [savingSettings, setSavingSettings] = useState(false)
+  const [imageResizeWidth, setImageResizeWidth] = useState<ImageResizeSetting>(
+    sessionUser?.imageResizeWidth ?? DEFAULT_IMAGE_RESIZE_WIDTH,
+  )
+  const [draftImageResizeWidth, setDraftImageResizeWidth] = useState<ImageResizeSetting>(imageResizeWidth)
+  const [showImageSettingsModal, setShowImageSettingsModal] = useState(false)
   const [notifyEmail, setNotifyEmail] = useState(true)
   const [notifyView, setNotifyView] = useState(true)
 
@@ -69,8 +277,10 @@ export function ProfilePage({
     }
   }, [loginPath, router, sessionUser])
 
-  function handleSaveInfo(event: React.FormEvent) {
-    event.preventDefault()
+  function handleSaveInfo(payload: { name: string; phone: string }) {
+    setName(payload.name || username)
+    setPhone(payload.phone || DEFAULT_PHONE)
+    setShowEditInfoModal(false)
     setInfoSaved(true)
     setTimeout(() => setInfoSaved(false), 2500)
   }
@@ -78,6 +288,30 @@ export function ProfilePage({
   function handleLogout() {
     clearSession()
     router.replace(logoutPath)
+  }
+
+  async function handleSaveImageSettings(value: ImageResizeSetting) {
+    setSavingSettings(true)
+    setSettingsError(null)
+    setSettingsSaved(false)
+
+    try {
+      const user = await updateUserSettings({ imageResizeWidth: value })
+      const savedValue = user.imageResizeWidth ?? DEFAULT_IMAGE_RESIZE_WIDTH
+      setImageResizeWidth(savedValue)
+      setDraftImageResizeWidth(savedValue)
+      setShowImageSettingsModal(false)
+      setSettingsSaved(true)
+      setTimeout(() => setSettingsSaved(false), 2500)
+    } catch (err) {
+      setSettingsError(err instanceof Error ? err.message : 'Không thể lưu cấu hình ảnh')
+    } finally {
+      setSavingSettings(false)
+    }
+  }
+
+  async function confirmImageSettings() {
+    await handleSaveImageSettings(draftImageResizeWidth)
   }
 
   const initials = (name || username || 'AD')
@@ -129,57 +363,27 @@ export function ProfilePage({
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-border bg-white shadow-sm">
-        <div className="border-b border-border bg-secondary/30 px-4 py-3">
+        <div className="flex items-center justify-between border-b border-border bg-secondary/30 px-4 py-3">
           <h2 className="text-sm font-semibold">Thông tin cá nhân</h2>
+          <button
+            type="button"
+            onClick={() => setShowEditInfoModal(true)}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3 py-1.5 text-xs font-semibold text-white shadow-sm shadow-primary/20 transition-all hover:bg-primary/90 active:scale-95"
+          >
+            <Pencil className="h-3.5 w-3.5" /> Sửa
+          </button>
         </div>
-        <form onSubmit={handleSaveInfo} className="space-y-3 p-4">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Field label="Họ và tên" icon={UserCircle}>
-              <input
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                className="w-full rounded-xl border border-border bg-secondary/40 py-2.5 pl-9 pr-3 text-sm outline-none transition-all focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/15"
-              />
-            </Field>
-
-            <Field label="Số điện thoại" icon={Phone}>
-              <input
-                value={phone}
-                onChange={(event) => setPhone(event.target.value)}
-                type="tel"
-                className="w-full rounded-xl border border-border bg-secondary/40 py-2.5 pl-9 pr-3 text-sm outline-none transition-all focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/15"
-              />
-            </Field>
-
-            <Field label="Email" icon={Mail}>
-              <input
-                value={email}
-                readOnly
-                className="w-full cursor-default rounded-xl border border-border bg-secondary/20 py-2.5 pl-9 pr-3 text-sm text-muted-foreground"
-              />
-            </Field>
-
-            <Field label="Tên đăng nhập" icon={UserCircle}>
-              <input
-                value={username}
-                readOnly
-                className="w-full cursor-default rounded-xl border border-border bg-secondary/20 py-2.5 pl-9 pr-3 text-sm text-muted-foreground"
-              />
-            </Field>
-          </div>
-
-          <div className="flex items-center justify-between pt-1">
-            <div className={`flex items-center gap-1.5 text-xs transition-opacity duration-300 ${infoSaved ? 'opacity-100 text-green-600' : 'opacity-0'}`}>
-              <CheckCircle2 className="h-3.5 w-3.5" /> Đã lưu thành công
-            </div>
-            <button
-              type="submit"
-              className="rounded-xl bg-primary px-4 py-2 text-xs font-semibold text-white shadow-sm shadow-primary/20 transition-all hover:bg-primary/90 active:scale-95"
-            >
-              Lưu thay đổi
-            </button>
-          </div>
-        </form>
+        <div className="divide-y divide-border/60">
+          <InfoRow icon={UserCircle} label="Họ và tên" value={name || username} />
+          <InfoRow icon={Phone} label="Số điện thoại" value={phone} />
+          <InfoRow icon={Mail} label="Email" value={email} muted />
+          <InfoRow icon={UserCircle} label="Tên đăng nhập" value={username} muted />
+        </div>
+        <div className={`border-t border-border px-4 py-2 text-xs transition-opacity duration-300 ${infoSaved ? 'opacity-100 text-green-600' : 'opacity-0'}`}>
+          <span className="inline-flex items-center gap-1.5">
+            <CheckCircle2 className="h-3.5 w-3.5" /> Đã lưu thành công
+          </span>
+        </div>
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-border bg-white shadow-sm">
@@ -202,6 +406,62 @@ export function ProfilePage({
           <ChevronRight className="h-4 w-4 text-muted-foreground transition-colors group-hover:translate-x-0.5 group-hover:text-primary" />
         </Link>
       </div>
+
+      {role === 'user' ? (
+        <div className="overflow-hidden rounded-2xl border border-border bg-white shadow-sm">
+        <div className="border-b border-border bg-secondary/30 px-4 py-3">
+          <h2 className="text-sm font-semibold">Cấu hình ảnh</h2>
+        </div>
+        <div className="space-y-3 p-4">
+          <div className="flex items-start gap-3">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+              <ImageIcon className="h-4 w-4 text-primary" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold">Độ phân giải ảnh share mặc định</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Khách chưa thanh toán sẽ thấy ảnh preview {formatResizeSetting(imageResizeWidth)}, trừ project có cấu hình riêng. Ảnh gốc vẫn được giữ nguyên.
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              setDraftImageResizeWidth(imageResizeWidth)
+              setSettingsError(null)
+              setSettingsSaved(false)
+              setShowImageSettingsModal(true)
+            }}
+            className="flex w-full items-center justify-between rounded-xl border border-border bg-secondary/40 px-4 py-3 text-left transition-all hover:border-primary/40 hover:bg-white hover:ring-2 hover:ring-primary/10"
+          >
+            <span>
+              <span className="block text-sm font-semibold text-foreground">
+                {formatResizeSetting(imageResizeWidth)}
+              </span>
+              <span className="mt-0.5 block text-xs text-muted-foreground">
+                Bấm để mở popup cấu hình ảnh share
+              </span>
+            </span>
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          </button>
+
+          <div className="min-h-4 text-xs">
+            {settingsError ? (
+              <span className="text-red-500">{settingsError}</span>
+            ) : settingsSaved ? (
+              <span className="inline-flex items-center gap-1 text-green-600">
+                <CheckCircle2 className="h-3.5 w-3.5" /> Đã lưu cấu hình ảnh
+              </span>
+            ) : (
+              <span className="text-muted-foreground">
+                Gợi ý: 720px đủ xem duyệt; 480px hoặc 360px phù hợp gallery nhiều ảnh/chưa thanh toán.
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+      ) : null}
 
       <div className="overflow-hidden rounded-2xl border border-border bg-white shadow-sm">
         <div className="border-b border-border bg-secondary/30 px-4 py-3">
@@ -241,6 +501,54 @@ export function ProfilePage({
       </button>
 
       <div className="h-2" />
+
+      {showImageSettingsModal ? (
+        <ImageSettingsModal
+          currentValue={imageResizeWidth}
+          draftValue={draftImageResizeWidth}
+          onDraftChange={setDraftImageResizeWidth}
+          onClose={() => setShowImageSettingsModal(false)}
+          onConfirm={confirmImageSettings}
+          submitting={savingSettings}
+        />
+      ) : null}
+
+      {showEditInfoModal ? (
+        <EditProfileInfoModal
+          initialName={name}
+          initialPhone={phone}
+          email={email}
+          username={username}
+          onClose={() => setShowEditInfoModal(false)}
+          onSave={handleSaveInfo}
+        />
+      ) : null}
+    </div>
+  )
+}
+
+function InfoRow({
+  label,
+  value,
+  icon: Icon,
+  muted = false,
+}: {
+  label: string
+  value: string
+  icon: typeof UserCircle
+  muted?: boolean
+}) {
+  return (
+    <div className="flex items-center gap-3 px-4 py-3.5">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-secondary">
+        <Icon className="h-4 w-4 text-muted-foreground" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
+        <p className={`mt-0.5 truncate text-sm font-medium ${muted ? 'text-muted-foreground' : 'text-foreground'}`}>
+          {value || 'Chưa cập nhật'}
+        </p>
+      </div>
     </div>
   )
 }

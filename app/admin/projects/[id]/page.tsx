@@ -4,8 +4,16 @@ import { use, useCallback, useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { getStoredSession } from '@/lib/auth'
+import {
+  DEFAULT_IMAGE_RESIZE_WIDTH,
+  IMAGE_RESIZE_OPTIONS,
+  PHOTO_BATCH_SIZE,
+  formatResizeSetting,
+  type ImageResizeSetting,
+} from '@/lib/image-resize'
 import type { Project } from '@/lib/mock-data'
-import { formatCurrency, formatDate, maskPhone } from '@/lib/utils'
+import { buildCurrencySuggestions, formatCurrency, formatDate, maskPhone } from '@/lib/utils'
 import {
   addProjectPhoto,
   createProjectPhotoUploadUrl,
@@ -27,6 +35,7 @@ import {
   Copy,
   ExternalLink,
   ImageIcon,
+  Loader2,
   Phone,
   ScrollText,
   Trash2,
@@ -52,6 +61,36 @@ function parsePaidAmountInput(value: string) {
   }
 
   return amount
+}
+
+function parseAccessClient(userAgent: string) {
+  const normalized = userAgent || 'Anonymous visitor'
+  const browser = /Edg\//.test(normalized)
+    ? 'Edge'
+    : /Chrome\//.test(normalized)
+      ? 'Chrome'
+      : /Safari\//.test(normalized)
+        ? 'Safari'
+        : /Firefox\//.test(normalized)
+          ? 'Firefox'
+          : 'Trình duyệt ẩn danh'
+  const device = /iPhone|iPad|iOS/.test(normalized)
+    ? 'iOS'
+    : /Android/.test(normalized)
+      ? 'Android'
+      : /Macintosh|Mac OS/.test(normalized)
+        ? 'macOS'
+        : /Windows/.test(normalized)
+          ? 'Windows'
+          : /Linux/.test(normalized)
+            ? 'Linux'
+            : 'Thiết bị ẩn danh'
+
+  return {
+    browser,
+    device,
+    label: `${browser} • ${device}`,
+  }
 }
 
 function EditProjectModal({
@@ -240,6 +279,90 @@ function DeletePhotoModal({
   )
 }
 
+function ResizeSettingConfirmModal({
+  currentValue,
+  nextValue,
+  globalValue,
+  onClose,
+  onConfirm,
+  submitting,
+}: {
+  currentValue: ImageResizeSetting
+  nextValue: ImageResizeSetting
+  globalValue: ImageResizeSetting
+  onClose: () => void
+  onConfirm: () => Promise<void>
+  submitting: boolean
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={submitting ? undefined : onClose} />
+
+      <div className="relative z-10 w-full max-w-md rounded-2xl bg-white shadow-2xl">
+        <div className="flex items-center justify-between border-b border-border px-5 py-4">
+          <div>
+            <h2 className="text-base font-bold">Xác nhận cấu hình ảnh share</h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Cấu hình này chỉ áp dụng cho ảnh khách xem thử khi project chưa thanh toán.
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            disabled={submitting}
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary transition-colors hover:bg-secondary/80 disabled:opacity-50"
+          >
+            <X className="h-4 w-4 text-muted-foreground" />
+          </button>
+        </div>
+
+        <div className="space-y-4 p-5">
+          <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+            Ảnh gốc vẫn được giữ nguyên. Khách chưa thanh toán sẽ chỉ thấy bản preview theo cấu hình này.
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <div className="rounded-xl bg-secondary/60 p-3">
+              <p className="text-xs text-muted-foreground">Hiện tại</p>
+              <p className="mt-1 font-semibold text-foreground">
+                {formatProjectResizeSetting(currentValue, globalValue)}
+              </p>
+            </div>
+            <div className="rounded-xl bg-primary/10 p-3">
+              <p className="text-xs text-primary/80">Sắp đổi thành</p>
+              <p className="mt-1 font-semibold text-primary">
+                {formatProjectResizeSetting(nextValue, globalValue)}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex gap-3 pt-1">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={submitting}
+              className="flex-1 rounded-xl border border-border py-3 text-sm font-medium transition-colors hover:bg-secondary/50 disabled:opacity-50"
+            >
+              Hủy
+            </button>
+            <button
+              type="button"
+              onClick={() => void onConfirm()}
+              disabled={submitting}
+              className="flex-1 rounded-xl bg-primary py-3 text-sm font-semibold text-white shadow-sm shadow-primary/20 transition-all hover:bg-primary/90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {submitting ? 'Đang lưu...' : 'Hoàn tất'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function formatProjectResizeSetting(value: ImageResizeSetting, globalValue: ImageResizeSetting) {
+  return value === null ? `Theo cấu hình tổng (${formatResizeSetting(globalValue)})` : formatResizeSetting(value)
+}
+
 function PhotoLightbox({
   photos,
   initialIndex,
@@ -412,13 +535,22 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   const [paymentInput, setPaymentInput] = useState('')
   const [savingPayment, setSavingPayment] = useState(false)
   const [showPaymentEdit, setShowPaymentEdit] = useState(false)
+  const [savingResizeSetting, setSavingResizeSetting] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [uploadProgressPercent, setUploadProgressPercent] = useState(0)
   const [uploadProgressLabel, setUploadProgressLabel] = useState('')
   const [removingPhotoId, setRemovingPhotoId] = useState<string | null>(null)
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
   const [deletePhotoTarget, setDeletePhotoTarget] = useState<{ id: string; filename: string } | null>(null)
+  const [pendingResizeSetting, setPendingResizeSetting] = useState<{ value: ImageResizeSetting } | null>(null)
+  const [visiblePhotoCount, setVisiblePhotoCount] = useState(PHOTO_BATCH_SIZE)
+  const [loadingMorePhotos, setLoadingMorePhotos] = useState(false)
+  const [visibleAccessLogCount, setVisibleAccessLogCount] = useState(PHOTO_BATCH_SIZE)
+  const [loadingMoreAccessLogs, setLoadingMoreAccessLogs] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const loadMorePhotosRef = useRef<HTMLDivElement | null>(null)
+  const loadMoreAccessLogsRef = useRef<HTMLDivElement | null>(null)
+  const globalResizeWidth = getStoredSession()?.user.imageResizeWidth ?? DEFAULT_IMAGE_RESIZE_WIDTH
 
   useEffect(() => {
     let active = true
@@ -452,6 +584,62 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
       active = false
     }
   }, [id])
+
+  useEffect(() => {
+    const node = loadMorePhotosRef.current
+    const photoCount = project?.photos.length ?? 0
+    const hasMorePhotos = visiblePhotoCount < photoCount
+
+    if (!node || !hasMorePhotos || loadingMorePhotos) {
+      return
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry?.isIntersecting) {
+          return
+        }
+
+        setLoadingMorePhotos(true)
+        window.setTimeout(() => {
+          setVisiblePhotoCount((count) => Math.min(count + PHOTO_BATCH_SIZE, photoCount))
+          setLoadingMorePhotos(false)
+        }, 180)
+      },
+      { rootMargin: '500px 0px' },
+    )
+
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [loadingMorePhotos, project?.photos.length, visiblePhotoCount])
+
+  useEffect(() => {
+    const node = loadMoreAccessLogsRef.current
+    const accessLogCount = project?.accessLogs.length ?? 0
+    const hasMoreAccessLogs = visibleAccessLogCount < accessLogCount
+
+    if (!node || !hasMoreAccessLogs || loadingMoreAccessLogs) {
+      return
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry?.isIntersecting) {
+          return
+        }
+
+        setLoadingMoreAccessLogs(true)
+        window.setTimeout(() => {
+          setVisibleAccessLogCount((count) => Math.min(count + PHOTO_BATCH_SIZE, accessLogCount))
+          setLoadingMoreAccessLogs(false)
+        }, 180)
+      },
+      { rootMargin: '160px 0px' },
+    )
+
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [loadingMoreAccessLogs, project?.accessLogs.length, visibleAccessLogCount])
 
   function copyLink() {
     if (!project) {
@@ -506,7 +694,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   }
 
   async function savePaidAmount() {
-    if (!project || project.status !== 'paid') {
+    if (!project) {
       return
     }
 
@@ -523,6 +711,38 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     } finally {
       setSavingPayment(false)
     }
+  }
+
+  async function updateResizeSetting(value: ImageResizeSetting) {
+    if (!project) {
+      return
+    }
+
+    try {
+      setSavingResizeSetting(true)
+      const updatedProject = await updateProject(project.id, {
+        name: project.name,
+        clientName: project.clientName,
+        clientPhone: project.clientPhone,
+        notes: project.notes,
+        imageResizeWidth: value,
+      })
+      setProject(updatedProject)
+      setError(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Không thể lưu cấu hình ảnh')
+    } finally {
+      setSavingResizeSetting(false)
+    }
+  }
+
+  async function confirmResizeSetting() {
+    if (!pendingResizeSetting) {
+      return
+    }
+
+    await updateResizeSetting(pendingResizeSetting.value)
+    setPendingResizeSetting(null)
   }
 
   async function handlePickPhotos(event: React.ChangeEvent<HTMLInputElement>) {
@@ -545,7 +765,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
       for (let index = 0; index < selectedFiles.length; index += 1) {
         const file = selectedFiles[index]
-        setUploadProgressLabel(`Đang upload ${index + 1}/${selectedFiles.length}: ${file.name}`)
+        setUploadProgressLabel(`Đang upload ảnh gốc ${index + 1}/${selectedFiles.length}: ${file.name}`)
 
         const presign = await createProjectPhotoUploadUrl(project.id, {
           fileName: file.name,
@@ -662,6 +882,9 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   }
 
   const isPaid = project.status === 'paid'
+  const paymentSuggestions = buildCurrencySuggestions(paymentInput)
+  const visibleAccessLogs = project.accessLogs.slice(0, visibleAccessLogCount)
+  const hasMoreAccessLogs = visibleAccessLogCount < project.accessLogs.length
 
   return (
     <div className="mx-auto max-w-5xl space-y-4 p-4 md:space-y-6 md:p-6">
@@ -748,7 +971,41 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
             ) : null}
           </div>
 
-          {/* Row 3: Action buttons — 1 hàng */}
+          {/* Row 3: Share image config — compact top control */}
+          <div className="mb-3 flex flex-col gap-2 rounded-xl border border-primary/10 bg-primary/5 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-foreground">Chất lượng ảnh share</p>
+              <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                Khách chưa thanh toán thấy preview: {formatResizeSetting(project.imageResizeWidth ?? globalResizeWidth)}
+              </p>
+            </div>
+            <label className="relative shrink-0">
+              <span className="sr-only">Cấu hình chất lượng ảnh share</span>
+              <select
+                value={(pendingResizeSetting?.value ?? project.imageResizeWidth) ?? 'inherit'}
+                onChange={(event) => {
+                  const value = event.target.value
+                  const nextValue = value === 'inherit' ? null : Number(value) as ImageResizeSetting
+                  if (nextValue === project.imageResizeWidth) {
+                    return
+                  }
+
+                  setPendingResizeSetting({ value: nextValue })
+                }}
+                disabled={uploading || savingResizeSetting}
+                className="w-full rounded-xl border border-primary/20 bg-white px-3 py-2 text-xs font-semibold text-primary outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-60 sm:w-56"
+              >
+                <option value="inherit">Theo cấu hình tổng ({formatResizeSetting(globalResizeWidth)})</option>
+                {IMAGE_RESIZE_OPTIONS.filter((option) => option.value !== null).map((option) => (
+                  <option key={option.label} value={option.value ?? ''}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          {/* Row 4: Action buttons — 1 hàng */}
           <div className="flex gap-2">
             <button
               id="btn-toggle-status"
@@ -817,7 +1074,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
         {showPaymentEdit && (
           <div className="border-t border-border px-4 py-4 md:px-5 space-y-3">
             <p className="text-xs text-muted-foreground">
-              Không bắt buộc. Để trống nếu chỉ muốn đánh dấu trạng thái thanh toán.
+              Nhập số tiền rồi lưu. Nếu project đang chờ thanh toán, hệ thống sẽ tự chuyển sang đã thanh toán.
             </p>
             <div className="flex flex-col gap-2 sm:flex-row">
               <input
@@ -832,12 +1089,28 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
               <button
                 type="button"
                 onClick={() => void savePaidAmount()}
-                disabled={project.status !== 'paid' || savingPayment}
+                disabled={savingPayment}
                 className="shrink-0 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700 transition-all hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {savingPayment ? 'Đang lưu...' : 'Lưu số tiền'}
               </button>
             </div>
+            {paymentSuggestions.length > 0 ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-medium text-muted-foreground">Gợi ý:</span>
+                {paymentSuggestions.map((amount) => (
+                  <button
+                    key={amount}
+                    type="button"
+                    onClick={() => setPaymentInput(String(amount))}
+                    disabled={savingPayment}
+                    className="rounded-full border border-primary/20 bg-primary/5 px-3 py-1.5 text-xs font-semibold text-primary transition-all hover:border-primary/40 hover:bg-primary/10 active:scale-95 disabled:opacity-50"
+                  >
+                    {formatCurrency(amount)}
+                  </button>
+                ))}
+              </div>
+            ) : null}
           </div>
         )}
       </div>
@@ -872,23 +1145,30 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
       <div className="overflow-hidden rounded-2xl border border-border bg-white shadow-sm">
         <div className="flex items-center justify-between border-b border-border px-4 py-3.5 md:px-6">
-          <h2 className="flex items-center gap-2 text-sm font-semibold">
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10">
-              <ImageIcon className="h-3.5 w-3.5 text-primary" />
-            </span>
-            Ảnh
-            <span className="ml-0.5 rounded-full bg-secondary px-2 py-0.5 text-xs text-muted-foreground">
-              {project.photos.length}
-            </span>
-          </h2>
-          <button
-            id="btn-upload-photos"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploading}
-            className="flex items-center gap-1.5 rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-white shadow-sm shadow-primary/30 transition-all hover:bg-primary/90 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            <Upload className="h-3.5 w-3.5" /> {uploading ? 'Đang upload...' : 'Upload ảnh'}
-          </button>
+          <div className="min-w-0">
+            <h2 className="flex items-center gap-2 text-sm font-semibold">
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10">
+                <ImageIcon className="h-3.5 w-3.5 text-primary" />
+              </span>
+              Ảnh
+              <span className="ml-0.5 rounded-full bg-secondary px-2 py-0.5 text-xs text-muted-foreground">
+                {project.photos.length}
+              </span>
+            </h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Khách chưa thanh toán sẽ thấy ảnh preview: {formatResizeSetting(project.imageResizeWidth ?? globalResizeWidth)}
+            </p>
+          </div>
+          <div className="flex flex-col items-end gap-2 sm:flex-row sm:items-center">
+            <button
+              id="btn-upload-photos"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              className="flex items-center gap-1.5 rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-white shadow-sm shadow-primary/30 transition-all hover:bg-primary/90 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <Upload className="h-3.5 w-3.5" /> {uploading ? 'Đang upload...' : 'Upload ảnh'}
+            </button>
+          </div>
           <input
             ref={fileInputRef}
             type="file"
@@ -909,52 +1189,66 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
               <p className="mt-1 text-xs text-muted-foreground/70">Upload ảnh để bắt đầu</p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4">
-              {project.photos.map((photo, photoIdx) => (
-                <div
-                  key={photo.id}
-                  className="group relative aspect-[4/3] overflow-hidden rounded-xl bg-secondary shadow-sm cursor-pointer"
-                  onClick={() => setLightboxIndex(photoIdx)}
-                >
-                  <Image
-                    src={photo.previewUrl}
-                    alt={photo.filename}
-                    fill
-                    className="object-cover transition-transform duration-300 group-hover:scale-105"
-                    sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 25vw"
-                    unoptimized
-                  />
-                  {/* Hover overlay */}
-                  <div className="absolute inset-0 flex items-end justify-between bg-gradient-to-t from-black/70 via-black/20 to-transparent p-2.5 opacity-0 transition-opacity group-hover:opacity-100">
-                    {/* Filename */}
-                    <p className="truncate text-xs text-white/90 flex-1 mr-2">{photo.filename}</p>
-                    {/* Actions */}
-                    <div
-                      className="flex flex-shrink-0 items-center gap-1.5 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {/* View full */}
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setLightboxIndex(photoIdx) }}
-                        className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/20 text-white backdrop-blur-sm transition-all hover:bg-white/30 active:scale-95"
-                        title="Xem ảnh to"
+            <>
+              <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4">
+                {project.photos.slice(0, visiblePhotoCount).map((photo, photoIdx) => (
+                  <div
+                    key={photo.id}
+                    className="group relative aspect-[4/3] cursor-pointer overflow-hidden rounded-xl bg-secondary shadow-sm"
+                    onClick={() => setLightboxIndex(photoIdx)}
+                  >
+                    <Image
+                      src={photo.previewUrl}
+                      alt={photo.filename}
+                      fill
+                      className="object-cover transition-transform duration-300 group-hover:scale-105"
+                      sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 25vw"
+                      unoptimized
+                    />
+                    {/* Hover overlay */}
+                    <div className="absolute inset-0 flex items-end justify-between bg-gradient-to-t from-black/70 via-black/20 to-transparent p-2.5 opacity-0 transition-opacity group-hover:opacity-100">
+                      {/* Filename */}
+                      <p className="mr-2 flex-1 truncate text-xs text-white/90">{photo.filename}</p>
+                      {/* Actions */}
+                      <div
+                        className="flex flex-shrink-0 items-center gap-1.5 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
+                        onClick={(e) => e.stopPropagation()}
                       >
-                        <ZoomIn className="h-3.5 w-3.5" />
-                      </button>
-                      {/* Delete */}
-                      <button
-                        onClick={(e) => { e.stopPropagation(); requestDeletePhoto(photo.id) }}
-                        disabled={removingPhotoId === photo.id}
-                        className="flex h-7 w-7 items-center justify-center rounded-lg bg-red-500/80 text-white backdrop-blur-sm transition-all hover:bg-red-600 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
-                        title="Ẩn ảnh"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
+                        {/* View full */}
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setLightboxIndex(photoIdx) }}
+                          className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/20 text-white backdrop-blur-sm transition-all hover:bg-white/30 active:scale-95"
+                          title="Xem ảnh to"
+                        >
+                          <ZoomIn className="h-3.5 w-3.5" />
+                        </button>
+                        {/* Delete */}
+                        <button
+                          onClick={(e) => { e.stopPropagation(); requestDeletePhoto(photo.id) }}
+                          disabled={removingPhotoId === photo.id}
+                          className="flex h-7 w-7 items-center justify-center rounded-lg bg-red-500/80 text-white backdrop-blur-sm transition-all hover:bg-red-600 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
+                          title="Ẩn ảnh"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
                     </div>
                   </div>
+                ))}
+              </div>
+
+              {visiblePhotoCount < project.photos.length ? (
+                <div ref={loadMorePhotosRef} className="flex justify-center py-5">
+                  {loadingMorePhotos ? (
+                    <span className="inline-flex items-center gap-2 rounded-full bg-secondary px-4 py-2 text-sm font-medium text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin" /> Đang tải thêm ảnh...
+                    </span>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">Cuộn xuống để tải thêm ảnh</span>
+                  )}
                 </div>
-              ))}
-            </div>
+              ) : null}
+            </>
           )}
         </div>
       </div>
@@ -972,32 +1266,48 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
           </h2>
         </div>
 
-        <div className="divide-y divide-border/60">
+        <div className="max-h-96 overflow-y-auto divide-y divide-border/60">
           {project.accessLogs.length === 0 ? (
             <p className="py-10 text-center text-sm text-muted-foreground">
               Chưa có lượt truy cập nào
             </p>
           ) : (
-            project.accessLogs.map((log) => (
-              <div key={log.id} className="flex items-center gap-3 px-4 py-3 md:px-6">
-                <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-secondary text-base">
-                  🌐
+            <>
+            {visibleAccessLogs.map((log) => {
+              const accessClient = parseAccessClient(log.userAgent)
+
+              return (
+                <div key={log.id} className="flex items-center gap-3 px-4 py-3 md:px-6">
+                  <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-secondary text-base">
+                    🌐
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-foreground">Người ẩn danh</p>
+                    <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                      {accessClient.label} • IP: <span className="font-mono">{log.ip}</span>
+                    </p>
+                  </div>
+                  <div className="flex flex-col items-end gap-1 text-right">
+                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
+                      {log.viewCount} lượt
+                    </span>
+                    <span className="text-xs text-muted-foreground">{formatDate(log.viewedAt)}</span>
+                  </div>
                 </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-mono text-sm font-medium">{log.ip}</p>
-                  <p className="max-w-xs truncate text-xs text-muted-foreground">
-                    {log.userAgent.slice(0, 55)}…
-                  </p>
-                </div>
-                <div className="flex flex-col items-end gap-1 text-right">
-                  <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
-                    {log.viewCount}×
+              )
+            })}
+            {hasMoreAccessLogs ? (
+              <div ref={loadMoreAccessLogsRef} className="flex justify-center py-4">
+                {loadingMoreAccessLogs ? (
+                  <span className="inline-flex items-center gap-2 rounded-full bg-secondary px-4 py-2 text-sm font-medium text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" /> Đang tải thêm lượt truy cập...
                   </span>
-                  <span className="text-xs text-muted-foreground">{formatDate(log.viewedAt)}</span>
-                </div>
-                <ChevronRight className="h-4 w-4 flex-shrink-0 text-muted-foreground/40" />
+                ) : (
+                  <span className="text-xs text-muted-foreground">Cuộn để tải thêm lượt truy cập</span>
+                )}
               </div>
-            ))
+            ) : null}
+            </>
           )}
         </div>
       </div>
@@ -1027,6 +1337,17 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
           onClose={() => setDeletePhotoTarget(null)}
           onConfirm={confirmDeletePhoto}
           submitting={removingPhotoId === deletePhotoTarget.id}
+        />
+      ) : null}
+
+      {pendingResizeSetting ? (
+        <ResizeSettingConfirmModal
+          currentValue={project.imageResizeWidth ?? null}
+          nextValue={pendingResizeSetting.value}
+          globalValue={globalResizeWidth}
+          onClose={() => setPendingResizeSetting(null)}
+          onConfirm={confirmResizeSetting}
+          submitting={savingResizeSetting}
         />
       ) : null}
     </div>

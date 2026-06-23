@@ -30,6 +30,8 @@ export interface Project {
   shareToken: string
   status: ProjectStatus
   paidAmount?: number | null
+  imageResizeWidth?: 120 | 360 | 480 | 720 | null
+  effectiveImageResizeWidth?: 120 | 360 | 480 | 720 | null
   notes?: string
   createdAt: string
   photos: Photo[]

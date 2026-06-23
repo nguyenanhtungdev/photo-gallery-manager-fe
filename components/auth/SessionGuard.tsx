@@ -1,8 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { usePathname, useRouter } from 'next/navigation'
-import { clearSession, fetchCurrentUser, getStoredSession, saveSession } from '@/lib/auth'
+import { useRouter } from 'next/navigation'
+import { clearSession, getStoredSession } from '@/lib/auth'
 
 export function SessionGuard({
   children,
@@ -16,48 +16,37 @@ export function SessionGuard({
   mismatchPath?: string
 }) {
   const router = useRouter()
-  const pathname = usePathname()
   const [checking, setChecking] = useState(true)
 
   useEffect(() => {
     let active = true
 
-    async function verifySession() {
+    function verifySession() {
       const session = getStoredSession()
       if (!session) {
         router.replace(loginPath)
         return
       }
 
-      try {
-        const user = await fetchCurrentUser(session.accessToken)
-        if (!active) {
-          return
-        }
-
-        if (requiredRole && user.role !== requiredRole) {
-          clearSession()
-          router.replace(mismatchPath ?? loginPath)
-          return
-        }
-
-        saveSession({
-          ...session,
-          user,
-        })
-        setChecking(false)
-      } catch {
+      if (requiredRole && session.user.role !== requiredRole) {
         clearSession()
-        router.replace(`${loginPath}?next=${encodeURIComponent(pathname)}`)
+        router.replace(mismatchPath ?? loginPath)
+        return
       }
+
+      if (!active) {
+        return
+      }
+
+      setChecking(false)
     }
 
-    void verifySession()
+    verifySession()
 
     return () => {
       active = false
     }
-  }, [loginPath, mismatchPath, pathname, requiredRole, router])
+  }, [loginPath, mismatchPath, requiredRole, router])
 
   if (checking) {
     return (

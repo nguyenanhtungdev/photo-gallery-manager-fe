@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Image from 'next/image'
 import { Photo, Project } from '@/lib/mock-data'
+import { PHOTO_BATCH_SIZE } from '@/lib/image-resize'
 import WatermarkCanvas from './WatermarkCanvas'
 import PhotoViewer from './PhotoViewer'
-import { Download, ZoomIn, Lock } from 'lucide-react'
+import { Download, ZoomIn, Lock, Loader2 } from 'lucide-react'
 
 interface PhotoGridProps {
   project: Project
@@ -13,9 +14,11 @@ interface PhotoGridProps {
 
 function ProtectedPhotoCard({
   photo,
+  previewWidth,
   onClick,
 }: {
   photo: Photo
+  previewWidth: number | null
   onClick: () => void
 }) {
   return (
@@ -31,9 +34,10 @@ function ProtectedPhotoCard({
         alt="Ảnh xem thử"
         fill
         className="object-cover photo-protected"
-        sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+        sizes={previewWidth ? `${previewWidth}px` : '(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw'}
+        quality={60}
         draggable={false}
-        unoptimized
+        unoptimized={!previewWidth}
       />
 
       {/* Watermark góc dưới-phải của ảnh (cover mode) */}
@@ -103,22 +107,46 @@ function PaidPhotoCard({
 
 export default function PhotoGrid({ project }: PhotoGridProps) {
   const [viewerIndex, setViewerIndex] = useState<number | null>(null)
+  const [visibleCount, setVisibleCount] = useState(PHOTO_BATCH_SIZE)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const loadMoreRef = useRef<HTMLDivElement | null>(null)
   const isPaid = project.status === 'paid'
+  const previewWidth = project.effectiveImageResizeWidth !== undefined
+    ? project.effectiveImageResizeWidth
+    : project.imageResizeWidth ?? 720
+  const visiblePhotos = project.photos.slice(0, visibleCount)
+  const hasMorePhotos = visibleCount < project.photos.length
 
-  // Log access on mount (mock)
   useEffect(() => {
-    console.log('[Access Log] Gallery viewed:', {
-      projectId: project.id,
-      time: new Date().toISOString(),
-      userAgent: navigator.userAgent,
-    })
-  }, [project.id])
+    const node = loadMoreRef.current
+    if (!node || !hasMorePhotos || loadingMore) {
+      return
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry?.isIntersecting) {
+          return
+        }
+
+        setLoadingMore(true)
+        window.setTimeout(() => {
+          setVisibleCount((count) => Math.min(count + PHOTO_BATCH_SIZE, project.photos.length))
+          setLoadingMore(false)
+        }, 180)
+      },
+      { rootMargin: '500px 0px' },
+    )
+
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [hasMorePhotos, loadingMore, project.photos.length])
 
   return (
     <>
       {/* Photo grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-        {project.photos.map((photo, idx) =>
+        {visiblePhotos.map((photo, idx) =>
           isPaid ? (
             <PaidPhotoCard
               key={photo.id}
@@ -129,11 +157,24 @@ export default function PhotoGrid({ project }: PhotoGridProps) {
             <ProtectedPhotoCard
               key={photo.id}
               photo={photo}
+              previewWidth={previewWidth}
               onClick={() => setViewerIndex(idx)}
             />
           )
         )}
       </div>
+
+      {hasMorePhotos ? (
+        <div ref={loadMoreRef} className="flex justify-center py-5">
+          {loadingMore ? (
+            <span className="inline-flex items-center gap-2 rounded-full bg-secondary px-4 py-2 text-sm font-medium text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" /> Đang tải thêm ảnh...
+            </span>
+          ) : (
+            <span className="text-xs text-muted-foreground">Cuộn xuống để tải thêm ảnh</span>
+          )}
+        </div>
+      ) : null}
 
       {/* Download All (paid only) */}
       {isPaid && (
@@ -155,6 +196,7 @@ export default function PhotoGrid({ project }: PhotoGridProps) {
           initialIndex={viewerIndex}
           onClose={() => setViewerIndex(null)}
           isPaid={isPaid}
+          previewWidth={previewWidth}
         />
       )}
     </>
