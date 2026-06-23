@@ -36,8 +36,8 @@ function ProtectedPhotoCard({
         unoptimized
       />
 
-      {/* Watermark canvas */}
-      <WatermarkCanvas />
+      {/* Watermark góc dưới-phải của ảnh (cover mode) */}
+      <WatermarkCanvas mode="cover" />
 
       {/* Transparent blocker prevents right-click on image */}
       <div

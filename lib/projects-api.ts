@@ -4,14 +4,14 @@ import { apiFetch } from '@/lib/auth'
 export type CreateProjectInput = {
   name: string
   clientName: string
-  clientPhone: string
+  clientPhone?: string | null
   notes?: string
 }
 
 export type UpdateProjectInput = {
   name: string
   clientName: string
-  clientPhone: string
+  clientPhone?: string | null
   notes?: string
 }
 

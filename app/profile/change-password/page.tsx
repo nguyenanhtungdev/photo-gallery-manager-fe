@@ -1,10 +1,10 @@
 import { ChangePasswordPage } from '@/components/profile/ChangePasswordPage'
 
-export default function AdminChangePasswordPage() {
+export default function UserChangePasswordPage() {
   return (
     <ChangePasswordPage
-      backPath="/admin/profile"
-      redirectPath="/admin/profile"
+      backPath="/profile"
+      redirectPath="/profile"
     />
   )
 }

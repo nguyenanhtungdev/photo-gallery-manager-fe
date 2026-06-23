@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { FormEvent, MouseEvent } from 'react'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import type { Project, ProjectStatus } from '@/lib/mock-data'
 import { formatCurrency, formatDate, maskPhone } from '@/lib/utils'
 import {
@@ -480,7 +481,7 @@ function CreateProjectModal({
             {[
               { id: 'name',        label: 'Tên project',    placeholder: 'Để trống sẽ lấy tên khách hàng', required: false },
               { id: 'clientName',  label: 'Tên khách hàng', placeholder: 'Nguyễn Văn A',                   required: true  },
-              { id: 'clientPhone', label: 'Số điện thoại',  placeholder: '0912345678',                     required: true  },
+              { id: 'clientPhone', label: 'Số điện thoại',  placeholder: 'Không bắt buộc',                 required: false },
             ].map(({ id, label, placeholder, required }) => (
               <div key={id}>
                 <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -495,6 +496,11 @@ function CreateProjectModal({
                   disabled={submitting}
                   className="w-full rounded-xl border border-border bg-secondary/50 px-4 py-3 text-sm outline-none transition-all placeholder:text-muted-foreground/60 focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/20"
                 />
+                {id === 'clientPhone' && (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Có thể để trống nếu chưa cần lưu số điện thoại.
+                  </p>
+                )}
                 {id === 'name' && (
                   <p className="mt-1 text-xs text-muted-foreground">
                     Nếu bỏ trống, hệ thống dùng tên khách hàng làm tên thư mục.
@@ -659,6 +665,8 @@ function PaidAmountModal({
 }
 
 export default function ProjectsPage() {
+  const pathname = usePathname()
+  const projectBasePath = pathname.startsWith('/admin') ? '/admin/projects' : '/projects'
   const defaultToday = formatDateInputValue(new Date())
   const [projects, setProjects] = useState<Project[]>([])
   const [searchInput, setSearchInput] = useState('')
@@ -981,7 +989,7 @@ export default function ProjectsPage() {
           return (
             <Link
               key={project.id}
-              href={`/admin/projects/${project.id}`}
+              href={`${projectBasePath}/${project.id}`}
               className="group block cursor-pointer rounded-2xl border border-border bg-white shadow-sm transition-all hover:border-primary/30 hover:shadow-md"
             >
               <div
@@ -1004,7 +1012,8 @@ export default function ProjectsPage() {
                     {project.name}
                   </p>
                   <p className="truncate text-xs text-muted-foreground">
-                    {project.clientName} • {maskPhone(project.clientPhone)}
+                    {project.clientName}
+                    {maskPhone(project.clientPhone) ? ` • ${maskPhone(project.clientPhone)}` : ''}
                   </p>
                   {project.paidAmount != null ? (
                     <p className="mt-1 truncate text-xs font-medium text-emerald-700">

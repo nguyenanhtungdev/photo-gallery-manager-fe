@@ -3,6 +3,7 @@
 import { use, useCallback, useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import type { Project } from '@/lib/mock-data'
 import { formatCurrency, formatDate, maskPhone } from '@/lib/utils'
 import {
@@ -65,7 +66,7 @@ function EditProjectModal({
   const [form, setForm] = useState<UpdateProjectInput>({
     name: project.name,
     clientName: project.clientName,
-    clientPhone: project.clientPhone,
+    clientPhone: project.clientPhone ?? '',
     notes: project.notes ?? '',
   })
   const [submitting, setSubmitting] = useState(false)
@@ -110,7 +111,7 @@ function EditProjectModal({
             {[
               { key: 'name', label: 'Tên project', placeholder: 'Để trống sẽ lấy tên khách hàng', required: false },
               { key: 'clientName', label: 'Tên khách hàng', placeholder: 'Nguyễn Văn A', required: true },
-              { key: 'clientPhone', label: 'Số điện thoại', placeholder: '0912345678', required: true },
+              { key: 'clientPhone', label: 'Số điện thoại', placeholder: 'Không bắt buộc', required: false },
             ].map(({ key, label, placeholder, required }) => (
               <div key={key}>
                 <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -124,6 +125,11 @@ function EditProjectModal({
                   disabled={submitting}
                   className="w-full rounded-xl border border-border bg-secondary/50 px-4 py-3 text-sm outline-none transition-all placeholder:text-muted-foreground/60 focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/20"
                 />
+                {key === 'clientPhone' && (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Có thể để trống nếu chưa cần lưu số điện thoại.
+                  </p>
+                )}
               </div>
             ))}
 
@@ -394,6 +400,8 @@ function PhotoLightbox({
 
 export default function ProjectDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
+  const pathname = usePathname()
+  const projectBasePath = pathname.startsWith('/admin') ? '/admin/projects' : '/projects'
   const [project, setProject] = useState<Project | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -646,7 +654,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     return (
       <div className="p-4 text-center">
         <p className="text-muted-foreground">{error ?? 'Project không tồn tại'}</p>
-        <Link href="/admin/projects" className="mt-2 inline-block text-sm text-primary">
+        <Link href={projectBasePath} className="mt-2 inline-block text-sm text-primary">
           ← Quay lại
         </Link>
       </div>
@@ -658,7 +666,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   return (
     <div className="mx-auto max-w-5xl space-y-4 p-4 md:space-y-6 md:p-6">
       <Link
-        href="/admin/projects"
+        href={projectBasePath}
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
       >
         <ArrowLeft className="h-4 w-4" /> Quay lại Projects
@@ -727,7 +735,8 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
               <User className="h-3 w-3" /> {project.clientName}
             </span>
             <span className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-secondary px-2 py-1 text-[11px] text-muted-foreground">
-              <Phone className="h-3 w-3" /> {maskPhone(project.clientPhone)}
+              <Phone className="h-3 w-3" />
+              {maskPhone(project.clientPhone) || 'Không có SĐT'}
             </span>
             <span className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-secondary px-2 py-1 text-[11px] text-muted-foreground">
               <Calendar className="h-3 w-3" /> {formatDate(project.createdAt)}

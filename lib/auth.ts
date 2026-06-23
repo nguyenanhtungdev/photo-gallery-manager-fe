@@ -7,6 +7,7 @@ export type AuthUser = {
   name: string | null;
   email: string;
   username: string;
+  role: "admin" | "user";
   createdAt: string;
   updatedAt: string;
 };
@@ -18,14 +19,48 @@ export type AuthSession = {
   user: AuthUser;
 };
 
+export type VerificationStartResponse = {
+  verificationId: string;
+  expiresAt: string;
+  email: string;
+  debugCode?: string;
+};
+
 type LoginPayload = {
   username: string;
   password: string;
 };
 
+type UserRole = AuthUser["role"];
+
 type RegisterPayload = {
   username: string;
   password: string;
+};
+
+type ConfirmRegisterPayload = {
+  verificationId: string;
+  code: string;
+};
+
+type RequestPasswordChangePayload = {
+  currentPassword: string;
+  newPassword: string;
+};
+
+type ConfirmPasswordChangePayload = {
+  verificationId: string;
+  code: string;
+};
+
+type RequestForgotPasswordPayload = {
+  email: string;
+};
+
+type ConfirmForgotPasswordPayload = {
+  verificationId: string;
+  code: string;
+  newPassword: string;
 };
 
 type AuthRequestPayload = Record<string, unknown>;
@@ -59,15 +94,28 @@ export function clearSession() {
   window.localStorage.removeItem(STORAGE_KEY);
 }
 
-export async function login(payload: LoginPayload) {
+export async function login(
+  payload: LoginPayload,
+  options?: {
+    requiredRole?: UserRole;
+  },
+) {
   const deviceId = getDeviceId();
   const deviceName = getDeviceName();
-  const session = await requestAuth("/auth/login", {
+  const session = await requestAuth<AuthSession>("/auth/login", {
     ...payload,
     deviceId,
     deviceName,
     rememberAccount: true,
   });
+
+  if (options?.requiredRole && session.user.role !== options.requiredRole) {
+    throw new Error(
+      options.requiredRole === "admin"
+        ? "Tài khoản này không có quyền truy cập trang quản trị"
+        : "Tài khoản quản trị vui lòng đăng nhập tại trang quản trị",
+    );
+  }
 
   return {
     ...session,
@@ -75,12 +123,44 @@ export async function login(payload: LoginPayload) {
   };
 }
 
+export async function loginAdmin(payload: LoginPayload) {
+  return login(payload, { requiredRole: "admin" });
+}
+
+export async function loginUser(payload: LoginPayload) {
+  return login(payload, { requiredRole: "user" });
+}
+
 export async function register(payload: RegisterPayload) {
-  const session = await requestAuth("/auth/register", payload);
+  return requestAuth<VerificationStartResponse>("/auth/register", payload);
+}
+
+export async function confirmRegister(payload: ConfirmRegisterPayload) {
+  const session = await requestAuth<AuthSession>("/auth/register/confirm", payload);
   return {
     ...session,
     deviceId: getDeviceId(),
   };
+}
+
+export async function requestPasswordChange(payload: RequestPasswordChangePayload) {
+  return requestAuthedAuth<VerificationStartResponse>("/auth/password-change", payload);
+}
+
+export async function confirmPasswordChange(payload: ConfirmPasswordChangePayload) {
+  return requestAuthedAuth<{ message: string }>("/auth/password-change/confirm", payload);
+}
+
+export async function requestForgotPassword(payload: RequestForgotPasswordPayload) {
+  return requestAuth<VerificationStartResponse>("/auth/forgot-password", payload);
+}
+
+export async function confirmForgotPassword(payload: ConfirmForgotPasswordPayload) {
+  return requestAuth<{ message: string }>("/auth/forgot-password/confirm", payload);
+}
+
+export function getDefaultRouteForRole(role: UserRole) {
+  return role === "admin" ? "/admin/dashboard" : "/dashboard";
 }
 
 export async function fetchCurrentUser(accessToken: string) {
@@ -107,7 +187,7 @@ export async function apiFetch(path: string, init: RequestInit = {}) {
   return requestWithSession(path, init, session, true);
 }
 
-async function requestAuth(path: string, payload: AuthRequestPayload) {
+async function requestAuth<T>(path: string, payload: AuthRequestPayload) {
   const response = await fetch(getApiUrl(path), {
     method: "POST",
     headers: withApiKeyHeaders({
@@ -121,7 +201,24 @@ async function requestAuth(path: string, payload: AuthRequestPayload) {
     throw new Error(getErrorMessage(data, "Không thể kết nối máy chủ"));
   }
 
-  return data as AuthSession;
+  return data as T;
+}
+
+async function requestAuthedAuth<T>(path: string, payload: AuthRequestPayload) {
+  const response = await apiFetch(path, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const data = await readJson(response);
+  if (!response.ok) {
+    throw new Error(getErrorMessage(data, "Không thể kết nối máy chủ"));
+  }
+
+  return data as T;
 }
 
 async function requestWithSession(
