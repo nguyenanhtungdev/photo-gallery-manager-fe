@@ -11,10 +11,11 @@ interface PhotoViewerProps {
   initialIndex: number
   onClose: () => void
   isPaid: boolean
+  previewWidth?: number | null
 }
 
 export default function PhotoViewer({
-  photos, initialIndex, onClose, isPaid,
+  photos, initialIndex, onClose, isPaid, previewWidth = 720,
 }: PhotoViewerProps) {
   const [current, setCurrent] = useState(initialIndex)
   const [imgRatio, setImgRatio] = useState<number | undefined>(undefined)
@@ -86,10 +87,11 @@ export default function PhotoViewer({
             alt={photo.filename}
             fill
             className={`object-contain rounded-xl ${!isPaid ? 'photo-protected' : ''}`}
-            sizes="100vw"
+            sizes={!isPaid && previewWidth ? `${previewWidth}px` : '(max-width: 1280px) 90vw, 1024px'}
             draggable={false}
             priority
-            unoptimized
+            quality={!isPaid ? 60 : undefined}
+            unoptimized={isPaid || !previewWidth}
           />
 
           {/* Watermark */}

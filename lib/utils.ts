@@ -5,8 +5,8 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export function maskPhone(phone: string | null | undefined): string {
-  if (!phone) return ''
+export function maskPhone(phone?: string | null): string {
+  if (!phone) return 'Chưa có'
   if (phone.length <= 4) return phone
   const start = phone.slice(0, 3)
   const end = phone.slice(-3)

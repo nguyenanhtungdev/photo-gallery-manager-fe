@@ -13,8 +13,15 @@ import {
   Shield,
   ChevronRight,
   KeyRound,
+  ImageIcon,
 } from 'lucide-react'
-import { clearSession, getStoredSession } from '@/lib/auth'
+import { clearSession, getStoredSession, updateUserSettings } from '@/lib/auth'
+import {
+  DEFAULT_IMAGE_RESIZE_WIDTH,
+  IMAGE_RESIZE_OPTIONS,
+  formatResizeSetting,
+  type ImageResizeSetting,
+} from '@/lib/image-resize'
 
 const DEFAULT_PHONE = 'Chưa cập nhật'
 
@@ -60,6 +67,12 @@ export function ProfilePage({
   const [role] = useState<'admin' | 'user'>(sessionUser?.role ?? 'user')
   const [joinedAt] = useState(sessionUser ? formatJoinDate(sessionUser.createdAt) : '')
   const [infoSaved, setInfoSaved] = useState(false)
+  const [settingsSaved, setSettingsSaved] = useState(false)
+  const [settingsError, setSettingsError] = useState<string | null>(null)
+  const [savingSettings, setSavingSettings] = useState(false)
+  const [imageResizeWidth, setImageResizeWidth] = useState<ImageResizeSetting>(
+    sessionUser?.imageResizeWidth ?? DEFAULT_IMAGE_RESIZE_WIDTH,
+  )
   const [notifyEmail, setNotifyEmail] = useState(true)
   const [notifyView, setNotifyView] = useState(true)
 
@@ -78,6 +91,24 @@ export function ProfilePage({
   function handleLogout() {
     clearSession()
     router.replace(logoutPath)
+  }
+
+  async function handleSaveImageSettings(value: ImageResizeSetting) {
+    setImageResizeWidth(value)
+    setSavingSettings(true)
+    setSettingsError(null)
+    setSettingsSaved(false)
+
+    try {
+      const user = await updateUserSettings({ imageResizeWidth: value })
+      setImageResizeWidth(user.imageResizeWidth ?? DEFAULT_IMAGE_RESIZE_WIDTH)
+      setSettingsSaved(true)
+      setTimeout(() => setSettingsSaved(false), 2500)
+    } catch (err) {
+      setSettingsError(err instanceof Error ? err.message : 'Không thể lưu cấu hình ảnh')
+    } finally {
+      setSavingSettings(false)
+    }
   }
 
   const initials = (name || username || 'AD')
@@ -201,6 +232,55 @@ export function ProfilePage({
           </div>
           <ChevronRight className="h-4 w-4 text-muted-foreground transition-colors group-hover:translate-x-0.5 group-hover:text-primary" />
         </Link>
+      </div>
+
+      <div className="overflow-hidden rounded-2xl border border-border bg-white shadow-sm">
+        <div className="border-b border-border bg-secondary/30 px-4 py-3">
+          <h2 className="text-sm font-semibold">Cấu hình ảnh</h2>
+        </div>
+        <div className="space-y-3 p-4">
+          <div className="flex items-start gap-3">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+              <ImageIcon className="h-4 w-4 text-primary" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold">Độ phân giải ảnh share mặc định</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Khách chưa thanh toán sẽ thấy ảnh preview {formatResizeSetting(imageResizeWidth)}, trừ project có cấu hình riêng. Ảnh gốc vẫn được giữ nguyên.
+              </p>
+            </div>
+          </div>
+
+          <select
+            value={imageResizeWidth ?? 'original'}
+            onChange={(event) => {
+              const value = event.target.value
+              void handleSaveImageSettings(value === 'original' ? null : Number(value) as ImageResizeSetting)
+            }}
+            disabled={savingSettings}
+            className="w-full rounded-xl border border-border bg-secondary/40 px-3 py-2.5 text-sm outline-none transition-all focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/15 disabled:opacity-60"
+          >
+            {IMAGE_RESIZE_OPTIONS.map((option) => (
+              <option key={option.label} value={option.value ?? 'original'}>
+                {option.label} — {option.description}
+              </option>
+            ))}
+          </select>
+
+          <div className="min-h-4 text-xs">
+            {settingsError ? (
+              <span className="text-red-500">{settingsError}</span>
+            ) : settingsSaved ? (
+              <span className="inline-flex items-center gap-1 text-green-600">
+                <CheckCircle2 className="h-3.5 w-3.5" /> Đã lưu cấu hình ảnh
+              </span>
+            ) : (
+              <span className="text-muted-foreground">
+                Gợi ý: 720px đủ xem duyệt; 480px hoặc 360px phù hợp gallery nhiều ảnh/chưa thanh toán.
+              </span>
+            )}
+          </div>
+        </div>
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-border bg-white shadow-sm">

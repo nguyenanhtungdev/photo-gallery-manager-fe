@@ -1,53 +1,42 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { usePathname, useRouter } from 'next/navigation'
-import { clearSession, fetchCurrentUser, getStoredSession, saveSession } from '@/lib/auth'
+import { useRouter } from 'next/navigation'
+import { clearSession, getStoredSession } from '@/lib/auth'
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter()
-  const pathname = usePathname()
   const [checking, setChecking] = useState(true)
 
   useEffect(() => {
     let active = true
 
-    async function verifySession() {
+    function verifySession() {
       const session = getStoredSession()
       if (!session) {
         router.replace('/admin/login')
         return
       }
 
-      try {
-        const user = await fetchCurrentUser(session.accessToken)
-        if (!active) {
-          return
-        }
-
-        if (user.role !== 'admin') {
-          clearSession()
-          router.replace('/admin/login')
-          return
-        }
-
-        saveSession({
-          ...session,
-          user,
-        })
-        setChecking(false)
-      } catch {
+      if (session.user.role !== 'admin') {
         clearSession()
-        router.replace(`/admin/login?next=${encodeURIComponent(pathname)}`)
+        router.replace('/admin/login')
+        return
       }
+
+      if (!active) {
+        return
+      }
+
+      setChecking(false)
     }
 
-    void verifySession()
+    verifySession()
 
     return () => {
       active = false
     }
-  }, [pathname, router])
+  }, [router])
 
   if (checking) {
     return (

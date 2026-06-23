@@ -1,6 +1,7 @@
 "use client";
 
 import { getApiUrl, withApiKeyHeaders } from "./api-config";
+import type { ImageResizeSetting } from "./image-resize";
 
 export type AuthUser = {
   id: string;
@@ -8,6 +9,7 @@ export type AuthUser = {
   email: string;
   username: string;
   role: "admin" | "user";
+  imageResizeWidth?: ImageResizeSetting;
   createdAt: string;
   updatedAt: string;
 };
@@ -178,6 +180,29 @@ export async function fetchCurrentUser(accessToken: string) {
   return data.user as AuthUser;
 }
 
+export async function updateUserSettings(payload: { imageResizeWidth?: ImageResizeSetting }) {
+  const response = await apiFetch("/auth/settings", {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+
+  const data = await readJson(response);
+  if (!response.ok) {
+    throw new Error(getErrorMessage(data, "Không thể lưu cấu hình"));
+  }
+
+  const user = data.user as AuthUser;
+  const session = getStoredSession();
+  if (session) {
+    saveSession({
+      ...session,
+      user,
+    });
+  }
+
+  return user;
+}
+
 export async function apiFetch(path: string, init: RequestInit = {}) {
   const session = getStoredSession();
   if (!session?.accessToken) {
@@ -241,19 +266,35 @@ async function requestWithSession(
 
   if (response.status !== 401 || !allowRetry) {
     if (response.status === 401) {
-      clearSession();
+      clearSessionAndRedirect(session);
     }
     return response;
   }
 
   const refreshedSession = await tryRememberedLogin(session);
   if (!refreshedSession) {
-    clearSession();
+    clearSessionAndRedirect(session);
     return response;
   }
 
   saveSession(refreshedSession);
   return requestWithSession(path, init, refreshedSession, false);
+}
+
+function clearSessionAndRedirect(session: AuthSession) {
+  clearSession();
+
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const loginPath = session.user.role === "admin" ? "/admin/login" : "/login";
+  const currentPath = `${window.location.pathname}${window.location.search}`;
+  if (window.location.pathname === loginPath) {
+    return;
+  }
+
+  window.location.replace(`${loginPath}?next=${encodeURIComponent(currentPath)}`);
 }
 
 async function tryRememberedLogin(session: AuthSession) {

@@ -62,6 +62,7 @@ export default function UserDashboardPage() {
     {
       label: 'Tổng project',
       value: summary.totalProjects,
+      meta: `${summary.totalPhotos} ảnh`,
       icon: FolderOpen,
       gradient: 'from-emerald-500 to-teal-500',
     },
@@ -78,10 +79,10 @@ export default function UserDashboardPage() {
       gradient: 'from-amber-500 to-orange-500',
     },
     {
-      label: 'Tổng ảnh',
-      value: summary.totalPhotos,
-      icon: ImageIcon,
-      gradient: 'from-cyan-500 to-blue-500',
+      label: 'Tổng doanh thu',
+      value: formatCurrency(summary.totalPaidAmount),
+      icon: ReceiptText,
+      gradient: 'from-rose-500 to-pink-500',
     },
   ]
 
@@ -97,12 +98,6 @@ export default function UserDashboardPage() {
       value: summary.averagePhotosPerProject,
       tone: 'bg-violet-50 text-violet-700 border-violet-200',
       icon: ImageIcon,
-    },
-    {
-      label: 'Tổng doanh thu',
-      value: formatCurrency(summary.totalPaidAmount),
-      tone: 'bg-rose-50 text-rose-700 border-rose-200',
-      icon: ReceiptText,
     },
   ]
 
@@ -129,7 +124,7 @@ export default function UserDashboardPage() {
       ) : (
         <>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            {stats.map(({ label, value, icon: Icon, gradient }) => (
+            {stats.map(({ label, value, meta, icon: Icon, gradient }) => (
               <div
                 key={label}
                 className={`relative overflow-hidden rounded-2xl bg-gradient-to-br ${gradient} p-4 text-white shadow-md`}
@@ -139,8 +134,11 @@ export default function UserDashboardPage() {
                   <div className="mb-2.5 flex h-9 w-9 items-center justify-center rounded-xl bg-white/20 backdrop-blur-sm">
                     <Icon className="h-4.5 w-4.5" />
                   </div>
-                  <p className="text-3xl font-bold leading-none">{value}</p>
+                  <p className="break-words text-3xl font-bold leading-none">{value}</p>
                   <p className="mt-1 text-[11px] font-medium leading-snug text-white/75">{label}</p>
+                  {meta ? (
+                    <p className="mt-1 text-[11px] font-semibold leading-snug text-white/90">{meta}</p>
+                  ) : null}
                 </div>
               </div>
             ))}
@@ -178,7 +176,7 @@ export default function UserDashboardPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:grid-cols-1">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1">
               {secondaryStats.map(({ label, value, tone, icon: Icon }) => (
                 <div key={label} className={`flex items-center gap-3 rounded-2xl border p-4 shadow-sm ${tone}`}>
                   <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-white/80">
@@ -207,12 +205,16 @@ export default function UserDashboardPage() {
             {dashboard?.recentProjects.length ? (
               <div className="divide-y divide-border/60">
                 {dashboard.recentProjects.map((project) => (
-                  <div key={project.id} className="flex items-center gap-3 px-4 py-3.5">
+                  <Link
+                    key={project.id}
+                    href={`/projects/${project.id}`}
+                    className="group flex items-center gap-3 px-4 py-3.5 transition-colors hover:bg-secondary/40 active:bg-secondary"
+                  >
                     <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl hero-gradient text-sm font-bold text-white">
                       {project.name.slice(0, 2).toUpperCase()}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-foreground">
+                      <p className="truncate text-sm font-medium text-foreground transition-colors group-hover:text-primary">
                         {project.name}
                       </p>
                       <p className="mt-0.5 text-xs text-muted-foreground">
@@ -231,7 +233,8 @@ export default function UserDashboardPage() {
                         {project.paidAmount != null ? formatCurrency(project.paidAmount) : 'Chưa có'}
                       </p>
                     </div>
-                  </div>
+                    <ArrowRight className="h-4 w-4 flex-shrink-0 text-muted-foreground/40 transition-transform group-hover:translate-x-0.5" />
+                  </Link>
                 ))}
               </div>
             ) : (
