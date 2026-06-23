@@ -117,15 +117,6 @@ export default function PhotoGrid({ project }: PhotoGridProps) {
   const visiblePhotos = project.photos.slice(0, visibleCount)
   const hasMorePhotos = visibleCount < project.photos.length
 
-  // Log access on mount (mock)
-  useEffect(() => {
-    console.log('[Access Log] Gallery viewed:', {
-      projectId: project.id,
-      time: new Date().toISOString(),
-      userAgent: navigator.userAgent,
-    })
-  }, [project.id])
-
   useEffect(() => {
     const node = loadMoreRef.current
     if (!node || !hasMorePhotos || loadingMore) {

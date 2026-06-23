@@ -25,7 +25,23 @@ export function formatDate(date: Date | string): string {
 }
 
 export function formatCurrency(amount: number): string {
-  return `${new Intl.NumberFormat('vi-VN').format(amount)} đ`
+  return `${new Intl.NumberFormat('vi-VN').format(amount)} VNĐ`
+}
+
+export function buildCurrencySuggestions(value: string): number[] {
+  const normalized = value.replace(/[^\d]/g, '')
+  if (!normalized) return []
+
+  const amount = Number(normalized)
+  if (!Number.isFinite(amount) || amount <= 0) return []
+
+  return [100, 1000, 10000]
+    .map((multiplier) => amount * multiplier)
+    .filter((suggestion, index, suggestions) => (
+      suggestion !== amount &&
+      suggestion <= 999_999_999 &&
+      suggestions.indexOf(suggestion) === index
+    ))
 }
 
 export function parseUserAgent(ua: string): string {
