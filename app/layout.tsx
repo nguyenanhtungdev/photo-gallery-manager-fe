@@ -1,8 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
 import "./globals.css";
-
-const inter = Inter({ subsets: ["latin", "vietnamese"] });
 
 export const metadata: Metadata = {
   title: "Photo Gallery Manager",
@@ -27,7 +24,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="vi" data-scroll-behavior="smooth">
-      <body suppressHydrationWarning className={inter.className}>
+      <body suppressHydrationWarning>
         {children}
       </body>
     </html>

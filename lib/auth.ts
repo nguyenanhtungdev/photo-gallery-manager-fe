@@ -102,7 +102,7 @@ export async function login(
 ) {
   const deviceId = getDeviceId();
   const deviceName = getDeviceName();
-  const session = await requestAuth("/auth/login", {
+  const session = await requestAuth<AuthSession>("/auth/login", {
     ...payload,
     deviceId,
     deviceName,

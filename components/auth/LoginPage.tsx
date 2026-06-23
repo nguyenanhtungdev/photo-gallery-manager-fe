@@ -563,7 +563,6 @@ export function LoginPage({
                       value={verificationCode}
                       onChange={(event) => setVerificationCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
                       placeholder="000000"
-                      disabled={forgotStep === "password"}
                       className="w-full rounded-2xl border border-violet-200 bg-white py-3.5 pl-10 pr-4 text-center text-base font-semibold tracking-[0.55em] text-slate-800 shadow-[0_6px_24px_rgba(124,58,237,0.08)] outline-none transition-all placeholder:tracking-[0.25em] placeholder:text-slate-300 hover:border-violet-300 hover:shadow-[0_8px_28px_rgba(124,58,237,0.12)] focus:border-violet-500 focus:ring-4 focus:ring-violet-100/80 disabled:cursor-not-allowed disabled:bg-slate-100"
                     />
                   </div>
