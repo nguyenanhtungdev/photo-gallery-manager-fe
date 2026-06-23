@@ -73,8 +73,8 @@ export default function WatermarkCanvas({
       ctx.font = `600 ${fontSize}px Inter, system-ui, sans-serif`;
       ctx.textBaseline = "bottom";
 
-      const paddingX = Math.max(8, imgW * 0.018);
-      const paddingY = Math.max(14, imgH * 0.04);
+      const paddingX = Math.max(20, imgW * 0.05);
+      const paddingY = Math.max(20, imgH * 0.08);
       const textX = imgX + imgW - paddingX;
       const textY = imgY + imgH - paddingY;
 
@@ -84,7 +84,7 @@ export default function WatermarkCanvas({
       ctx.shadowOffsetX = 0;
       ctx.shadowOffsetY = 1;
 
-      ctx.fillStyle = "rgba(255,255,255,0.17)";
+      ctx.fillStyle = "rgba(255,255,255,0.4";
 
       // Góc dưới-phải
       ctx.textAlign = "right";
