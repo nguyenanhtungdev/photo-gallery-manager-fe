@@ -26,7 +26,7 @@ export interface Project {
   id: string
   name: string
   clientName: string
-  clientPhone: string
+  clientPhone: string | null
   shareToken: string
   status: ProjectStatus
   paidAmount?: number | null

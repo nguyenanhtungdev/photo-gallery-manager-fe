@@ -19,6 +19,13 @@ export type AuthSession = {
   user: AuthUser;
 };
 
+export type VerificationStartResponse = {
+  verificationId: string;
+  expiresAt: string;
+  email: string;
+  debugCode?: string;
+};
+
 type LoginPayload = {
   username: string;
   password: string;
@@ -29,6 +36,31 @@ type UserRole = AuthUser["role"];
 type RegisterPayload = {
   username: string;
   password: string;
+};
+
+type ConfirmRegisterPayload = {
+  verificationId: string;
+  code: string;
+};
+
+type RequestPasswordChangePayload = {
+  currentPassword: string;
+  newPassword: string;
+};
+
+type ConfirmPasswordChangePayload = {
+  verificationId: string;
+  code: string;
+};
+
+type RequestForgotPasswordPayload = {
+  email: string;
+};
+
+type ConfirmForgotPasswordPayload = {
+  verificationId: string;
+  code: string;
+  newPassword: string;
 };
 
 type AuthRequestPayload = Record<string, unknown>;
@@ -100,11 +132,31 @@ export async function loginUser(payload: LoginPayload) {
 }
 
 export async function register(payload: RegisterPayload) {
-  const session = await requestAuth("/auth/register", payload);
+  return requestAuth<VerificationStartResponse>("/auth/register", payload);
+}
+
+export async function confirmRegister(payload: ConfirmRegisterPayload) {
+  const session = await requestAuth<AuthSession>("/auth/register/confirm", payload);
   return {
     ...session,
     deviceId: getDeviceId(),
   };
+}
+
+export async function requestPasswordChange(payload: RequestPasswordChangePayload) {
+  return requestAuthedAuth<VerificationStartResponse>("/auth/password-change", payload);
+}
+
+export async function confirmPasswordChange(payload: ConfirmPasswordChangePayload) {
+  return requestAuthedAuth<{ message: string }>("/auth/password-change/confirm", payload);
+}
+
+export async function requestForgotPassword(payload: RequestForgotPasswordPayload) {
+  return requestAuth<VerificationStartResponse>("/auth/forgot-password", payload);
+}
+
+export async function confirmForgotPassword(payload: ConfirmForgotPasswordPayload) {
+  return requestAuth<{ message: string }>("/auth/forgot-password/confirm", payload);
 }
 
 export function getDefaultRouteForRole(role: UserRole) {
@@ -135,7 +187,7 @@ export async function apiFetch(path: string, init: RequestInit = {}) {
   return requestWithSession(path, init, session, true);
 }
 
-async function requestAuth(path: string, payload: AuthRequestPayload) {
+async function requestAuth<T>(path: string, payload: AuthRequestPayload) {
   const response = await fetch(getApiUrl(path), {
     method: "POST",
     headers: withApiKeyHeaders({
@@ -149,7 +201,24 @@ async function requestAuth(path: string, payload: AuthRequestPayload) {
     throw new Error(getErrorMessage(data, "Không thể kết nối máy chủ"));
   }
 
-  return data as AuthSession;
+  return data as T;
+}
+
+async function requestAuthedAuth<T>(path: string, payload: AuthRequestPayload) {
+  const response = await apiFetch(path, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const data = await readJson(response);
+  if (!response.ok) {
+    throw new Error(getErrorMessage(data, "Không thể kết nối máy chủ"));
+  }
+
+  return data as T;
 }
 
 async function requestWithSession(

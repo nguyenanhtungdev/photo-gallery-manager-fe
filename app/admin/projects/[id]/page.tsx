@@ -66,7 +66,7 @@ function EditProjectModal({
   const [form, setForm] = useState<UpdateProjectInput>({
     name: project.name,
     clientName: project.clientName,
-    clientPhone: project.clientPhone,
+    clientPhone: project.clientPhone ?? '',
     notes: project.notes ?? '',
   })
   const [submitting, setSubmitting] = useState(false)
@@ -111,7 +111,7 @@ function EditProjectModal({
             {[
               { key: 'name', label: 'Tên project', placeholder: 'Để trống sẽ lấy tên khách hàng', required: false },
               { key: 'clientName', label: 'Tên khách hàng', placeholder: 'Nguyễn Văn A', required: true },
-              { key: 'clientPhone', label: 'Số điện thoại', placeholder: '0912345678', required: true },
+              { key: 'clientPhone', label: 'Số điện thoại', placeholder: 'Không bắt buộc', required: false },
             ].map(({ key, label, placeholder, required }) => (
               <div key={key}>
                 <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -125,6 +125,11 @@ function EditProjectModal({
                   disabled={submitting}
                   className="w-full rounded-xl border border-border bg-secondary/50 px-4 py-3 text-sm outline-none transition-all placeholder:text-muted-foreground/60 focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/20"
                 />
+                {key === 'clientPhone' && (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Có thể để trống nếu chưa cần lưu số điện thoại.
+                  </p>
+                )}
               </div>
             ))}
 
@@ -730,7 +735,8 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
               <User className="h-3 w-3" /> {project.clientName}
             </span>
             <span className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-secondary px-2 py-1 text-[11px] text-muted-foreground">
-              <Phone className="h-3 w-3" /> {maskPhone(project.clientPhone)}
+              <Phone className="h-3 w-3" />
+              {maskPhone(project.clientPhone) || 'Không có SĐT'}
             </span>
             <span className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-secondary px-2 py-1 text-[11px] text-muted-foreground">
               <Calendar className="h-3 w-3" /> {formatDate(project.createdAt)}
