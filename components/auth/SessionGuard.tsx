@@ -4,7 +4,17 @@ import { useEffect, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { clearSession, fetchCurrentUser, getStoredSession, saveSession } from '@/lib/auth'
 
-export function AuthGuard({ children }: { children: React.ReactNode }) {
+export function SessionGuard({
+  children,
+  loginPath = '/login',
+  requiredRole,
+  mismatchPath,
+}: {
+  children: React.ReactNode
+  loginPath?: string
+  requiredRole?: 'admin' | 'user'
+  mismatchPath?: string
+}) {
   const router = useRouter()
   const pathname = usePathname()
   const [checking, setChecking] = useState(true)
@@ -15,7 +25,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     async function verifySession() {
       const session = getStoredSession()
       if (!session) {
-        router.replace('/admin/login')
+        router.replace(loginPath)
         return
       }
 
@@ -25,9 +35,9 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
           return
         }
 
-        if (user.role !== 'admin') {
+        if (requiredRole && user.role !== requiredRole) {
           clearSession()
-          router.replace('/admin/login')
+          router.replace(mismatchPath ?? loginPath)
           return
         }
 
@@ -38,7 +48,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
         setChecking(false)
       } catch {
         clearSession()
-        router.replace(`/admin/login?next=${encodeURIComponent(pathname)}`)
+        router.replace(`${loginPath}?next=${encodeURIComponent(pathname)}`)
       }
     }
 
@@ -47,7 +57,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     return () => {
       active = false
     }
-  }, [pathname, router])
+  }, [loginPath, mismatchPath, pathname, requiredRole, router])
 
   if (checking) {
     return (

@@ -3,6 +3,7 @@
 import { use, useCallback, useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import type { Project } from '@/lib/mock-data'
 import { formatCurrency, formatDate, maskPhone } from '@/lib/utils'
 import {
@@ -394,6 +395,8 @@ function PhotoLightbox({
 
 export default function ProjectDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
+  const pathname = usePathname()
+  const projectBasePath = pathname.startsWith('/admin') ? '/admin/projects' : '/projects'
   const [project, setProject] = useState<Project | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -646,7 +649,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
     return (
       <div className="p-4 text-center">
         <p className="text-muted-foreground">{error ?? 'Project không tồn tại'}</p>
-        <Link href="/admin/projects" className="mt-2 inline-block text-sm text-primary">
+        <Link href={projectBasePath} className="mt-2 inline-block text-sm text-primary">
           ← Quay lại
         </Link>
       </div>
@@ -658,7 +661,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
   return (
     <div className="mx-auto max-w-5xl space-y-4 p-4 md:space-y-6 md:p-6">
       <Link
-        href="/admin/projects"
+        href={projectBasePath}
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
       >
         <ArrowLeft className="h-4 w-4" /> Quay lại Projects

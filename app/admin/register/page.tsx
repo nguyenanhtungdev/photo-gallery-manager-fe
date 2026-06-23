@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useEffect, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Camera, Eye, EyeOff, Lock, Mail, X, AlertCircle, CheckCircle2, UserPlus, ImageIcon, Layers, ShieldCheck } from 'lucide-react'
-import { getStoredSession, register, saveSession } from '@/lib/auth'
+import { getDefaultRouteForRole, getStoredSession, register, saveSession } from '@/lib/auth'
 
 function Toast({ type, message, onClose }: { type: 'error' | 'success'; message: string; onClose: () => void }) {
   const isErr = type === 'error'
@@ -59,7 +59,12 @@ export default function AdminRegisterPage() {
   const [showConfirmPass, setShowConfirmPass] = useState(false)
   const [toast, setToast] = useState<{ type: 'error' | 'success'; message: string } | null>(null)
 
-  useEffect(() => { if (getStoredSession()) router.replace('/admin/dashboard') }, [router])
+  useEffect(() => {
+    const session = getStoredSession()
+    if (session) {
+      router.replace(getDefaultRouteForRole(session.user.role))
+    }
+  }, [router])
   useEffect(() => {
     if (!toast) return
     const t = setTimeout(() => setToast(null), 4000)
@@ -76,7 +81,7 @@ export default function AdminRegisterPage() {
         const session = await register({ username, password })
         saveSession(session)
         setToast({ type: 'success', message: 'Tạo tài khoản thành công! Đang chuyển hướng...' })
-        setTimeout(() => router.replace('/admin/dashboard'), 800)
+        setTimeout(() => router.replace(getDefaultRouteForRole(session.user.role)), 800)
       } catch (err) {
         setToast({ type: 'error', message: err instanceof Error ? err.message : 'Đăng ký thất bại. Vui lòng thử lại.' })
       }

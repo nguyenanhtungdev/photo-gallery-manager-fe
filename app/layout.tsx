@@ -7,6 +7,11 @@ const inter = Inter({ subsets: ['latin', 'vietnamese'] })
 export const metadata: Metadata = {
   title: 'Photo Gallery Manager',
   description: 'Hệ thống quản lý ảnh chuyên nghiệp cho nhiếp ảnh gia',
+  icons: {
+    icon: '/icon.png',
+    shortcut: '/icon.png',
+    apple: '/icon.png',
+  },
 }
 //add
 export const viewport: Viewport = {

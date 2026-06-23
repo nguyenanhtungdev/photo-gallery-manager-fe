@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { FormEvent, MouseEvent } from 'react'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import type { Project, ProjectStatus } from '@/lib/mock-data'
 import { formatCurrency, formatDate, maskPhone } from '@/lib/utils'
 import {
@@ -659,6 +660,8 @@ function PaidAmountModal({
 }
 
 export default function ProjectsPage() {
+  const pathname = usePathname()
+  const projectBasePath = pathname.startsWith('/admin') ? '/admin/projects' : '/projects'
   const defaultToday = formatDateInputValue(new Date())
   const [projects, setProjects] = useState<Project[]>([])
   const [searchInput, setSearchInput] = useState('')
@@ -981,7 +984,7 @@ export default function ProjectsPage() {
           return (
             <Link
               key={project.id}
-              href={`/admin/projects/${project.id}`}
+              href={`${projectBasePath}/${project.id}`}
               className="group block cursor-pointer rounded-2xl border border-border bg-white shadow-sm transition-all hover:border-primary/30 hover:shadow-md"
             >
               <div

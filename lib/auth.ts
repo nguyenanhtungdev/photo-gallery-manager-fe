@@ -7,6 +7,7 @@ export type AuthUser = {
   name: string | null;
   email: string;
   username: string;
+  role: "admin" | "user";
   createdAt: string;
   updatedAt: string;
 };
@@ -22,6 +23,8 @@ type LoginPayload = {
   username: string;
   password: string;
 };
+
+type UserRole = AuthUser["role"];
 
 type RegisterPayload = {
   username: string;
@@ -59,7 +62,12 @@ export function clearSession() {
   window.localStorage.removeItem(STORAGE_KEY);
 }
 
-export async function login(payload: LoginPayload) {
+export async function login(
+  payload: LoginPayload,
+  options?: {
+    requiredRole?: UserRole;
+  },
+) {
   const deviceId = getDeviceId();
   const deviceName = getDeviceName();
   const session = await requestAuth("/auth/login", {
@@ -69,10 +77,26 @@ export async function login(payload: LoginPayload) {
     rememberAccount: true,
   });
 
+  if (options?.requiredRole && session.user.role !== options.requiredRole) {
+    throw new Error(
+      options.requiredRole === "admin"
+        ? "Tài khoản này không có quyền truy cập trang quản trị"
+        : "Tài khoản quản trị vui lòng đăng nhập tại trang quản trị",
+    );
+  }
+
   return {
     ...session,
     deviceId,
   };
+}
+
+export async function loginAdmin(payload: LoginPayload) {
+  return login(payload, { requiredRole: "admin" });
+}
+
+export async function loginUser(payload: LoginPayload) {
+  return login(payload, { requiredRole: "user" });
 }
 
 export async function register(payload: RegisterPayload) {
@@ -81,6 +105,10 @@ export async function register(payload: RegisterPayload) {
     ...session,
     deviceId: getDeviceId(),
   };
+}
+
+export function getDefaultRouteForRole(role: UserRole) {
+  return role === "admin" ? "/admin/dashboard" : "/dashboard";
 }
 
 export async function fetchCurrentUser(accessToken: string) {
