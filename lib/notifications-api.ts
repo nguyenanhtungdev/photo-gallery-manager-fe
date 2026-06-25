@@ -1,5 +1,10 @@
 import { apiFetch } from '@/lib/auth'
 
+export const NOTIFICATIONS_UNREAD_EVENT = 'notifications:unread-change'
+export const NOTIFICATION_CREATED_EVENT = 'notification:created'
+export const NOTIFICATION_READ_EVENT = 'notification:read'
+export const NOTIFICATIONS_ALL_READ_EVENT = 'notification:all-read'
+
 export type NotificationType = 'share_accessed' | 'project_created' | 'payment_updated'
 
 export type AppNotification = {
@@ -27,6 +32,22 @@ export type ListNotificationsResponse = {
   }
 }
 
+export type NotificationCreatedEventDetail = {
+  notification: AppNotification
+  unreadCount: number
+}
+
+export type NotificationReadEventDetail = {
+  notificationId: string
+  readAt: string
+  unreadCount: number
+}
+
+export type NotificationsAllReadEventDetail = {
+  readAt: string
+  unreadCount: number
+}
+
 export async function listNotifications(params: { offset?: number; limit?: number } = {}) {
   const searchParams = new URLSearchParams()
 
@@ -42,6 +63,11 @@ export async function listNotifications(params: { offset?: number; limit?: numbe
   return request<ListNotificationsResponse>(query ? `/notifications?${query}` : '/notifications')
 }
 
+export async function getUnreadNotificationsCount() {
+  const data = await listNotifications({ offset: 0, limit: 1 })
+  return data.unreadCount
+}
+
 export async function markNotificationAsRead(notificationId: string) {
   const data = await request<{ notification: AppNotification }>(`/notifications/${notificationId}/read`, {
     method: 'PATCH',
@@ -54,6 +80,54 @@ export async function markAllNotificationsAsRead() {
   await request('/notifications/read-all', {
     method: 'PATCH',
   })
+}
+
+export function emitUnreadNotificationsCount(unreadCount: number) {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  window.dispatchEvent(
+    new CustomEvent<number>(NOTIFICATIONS_UNREAD_EVENT, {
+      detail: unreadCount,
+    }),
+  )
+}
+
+export function emitNotificationCreated(detail: NotificationCreatedEventDetail) {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  window.dispatchEvent(
+    new CustomEvent<NotificationCreatedEventDetail>(NOTIFICATION_CREATED_EVENT, {
+      detail,
+    }),
+  )
+}
+
+export function emitNotificationRead(detail: NotificationReadEventDetail) {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  window.dispatchEvent(
+    new CustomEvent<NotificationReadEventDetail>(NOTIFICATION_READ_EVENT, {
+      detail,
+    }),
+  )
+}
+
+export function emitNotificationsAllRead(detail: NotificationsAllReadEventDetail) {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  window.dispatchEvent(
+    new CustomEvent<NotificationsAllReadEventDetail>(NOTIFICATIONS_ALL_READ_EVENT, {
+      detail,
+    }),
+  )
 }
 
 async function request<T>(path: string, init: RequestInit = {}) {

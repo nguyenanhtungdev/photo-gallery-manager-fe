@@ -11,6 +11,7 @@ import {
   FolderOpen, Plus, Search, ImageIcon, Clock,
   CheckCircle2, Copy, ExternalLink, MoreHorizontal,
   X, Check, Trash2, ChevronRight, ChevronLeft, CalendarRange,
+  LayoutGrid, Columns2, Square,
 } from 'lucide-react'
 import {
   createProject,
@@ -43,6 +44,34 @@ function formatDateInputValue(date: Date) {
   return `${year}-${month}-${day}`
 }
 
+function getCurrentWeekRange(today = new Date()) {
+  const currentDate = new Date(today)
+  const dayOfWeek = currentDate.getDay()
+  const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
+
+  const startOfWeek = new Date(currentDate)
+  startOfWeek.setDate(currentDate.getDate() + diffToMonday)
+  startOfWeek.setHours(0, 0, 0, 0)
+
+  const endOfWeek = new Date(startOfWeek)
+  endOfWeek.setDate(startOfWeek.getDate() + 6)
+  endOfWeek.setHours(0, 0, 0, 0)
+
+  return {
+    from: formatDateInputValue(startOfWeek),
+    to: formatDateInputValue(endOfWeek),
+  }
+}
+
+function getTodayRange(today = new Date()) {
+  const value = formatDateInputValue(today)
+
+  return {
+    from: value,
+    to: value,
+  }
+}
+
 function buildDateRange(dateFromInput: string, dateToInput: string) {
   if (!dateFromInput && !dateToInput) {
     return null
@@ -71,7 +100,85 @@ function parsePaidAmountInput(value: string) {
   return paidAmount
 }
 
-/* ─── DateRangePicker ──────────────────────────────────────── */
+/* ─── StatusSelect ────────────────────────────────────── */
+function StatusSelect({
+  value, onChange, options,
+}: {
+  value: string
+  onChange: (v: string) => void
+  options: { key: string; label: string; count: number }[]
+}) {
+  const [open, setOpen] = useState(false)
+  const [pos, setPos] = useState({ top: 0, left: 0, width: 0 })
+  const btnRef = useRef<HTMLButtonElement>(null)
+  const popRef = useRef<HTMLDivElement>(null)
+
+  function openMenu() {
+    if (btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect()
+      setPos({ top: r.bottom + 4, left: r.left, width: r.width })
+    }
+    setOpen(v => !v)
+  }
+
+  useEffect(() => {
+    if (!open) return
+    function onDown(e: globalThis.MouseEvent) {
+      const t = e.target as Node
+      if (!btnRef.current?.contains(t) && !popRef.current?.contains(t)) setOpen(false)
+    }
+    document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+  }, [open])
+
+  const selected = options.find(o => o.key === value)
+  const label = selected ? `${selected.label} (${selected.count})` : 'Tất cả'
+
+  const popup = open ? (
+    <div
+      ref={popRef}
+      style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, zIndex: 9999 }}
+      className="overflow-hidden rounded-xl border border-border bg-white shadow-xl"
+    >
+      {options.map(opt => (
+        <button
+          key={opt.key}
+          type="button"
+          onClick={() => { onChange(opt.key); setOpen(false) }}
+          className={`flex w-full items-center justify-between px-3.5 py-2.5 text-left text-xs font-semibold transition-colors hover:bg-secondary ${
+            opt.key === value ? 'text-primary bg-primary/5' : 'text-foreground'
+          }`}
+        >
+          <span>{opt.label}</span>
+          <span className="text-muted-foreground">({opt.count})</span>
+        </button>
+      ))}
+    </div>
+  ) : null
+
+  return (
+    <>
+      <button
+        ref={btnRef}
+        type="button"
+        onClick={openMenu}
+        className={`flex h-10 w-full min-w-0 items-center justify-between gap-1.5 rounded-xl border px-3 text-xs font-semibold transition-all ${
+          value !== 'all'
+            ? 'border-primary/30 bg-primary/5 text-primary'
+            : 'border-border text-foreground hover:border-primary/40'
+        }`}
+      >
+        <span className="truncate">{label}</span>
+        <ChevronRight className={`h-3.5 w-3.5 flex-shrink-0 transition-transform ${
+          open ? '-rotate-90' : 'rotate-90'
+        }`} />
+      </button>
+      {typeof document !== 'undefined' && createPortal(popup, document.body)}
+    </>
+  )
+}
+
+/* ─── DateRangePicker ────────────────────────────────────── */
 const VI_MONTHS = ['Tháng 1','Tháng 2','Tháng 3','Tháng 4','Tháng 5','Tháng 6',
                    'Tháng 7','Tháng 8','Tháng 9','Tháng 10','Tháng 11','Tháng 12']
 const VI_DAYS   = ['CN','T2','T3','T4','T5','T6','T7']
@@ -171,21 +278,29 @@ function DateRangePicker({
     }
   }
 
-  function dayClass(day: string) {
+  function getDayState(day: string) {
     const effectiveTo = picking === 'end' && hovered ? hovered : to
     const [lo, hi]   = from && effectiveTo && effectiveTo < from ? [effectiveTo, from] : [from, effectiveTo]
     const isStart    = day === from
-    const isEnd      = day === to
+    const isEnd      = day === effectiveTo
     const inRange    = lo && hi && day > lo && day < hi
     const isHovEnd   = picking === 'end' && day === hovered
-    if (isStart || isEnd || isHovEnd) return 'bg-primary text-white rounded-full font-semibold'
-    if (inRange)                      return 'bg-primary/15 text-primary'
-    return 'hover:bg-secondary rounded-full text-foreground'
+
+    return {
+      isStart,
+      isEnd,
+      inRange,
+      isHovEnd,
+    }
   }
 
   const label = from && to && from !== to
     ? `${fmtDisplay(from)} \u2013 ${fmtDisplay(to)}`
     : from ? fmtDisplay(from) : 'Lọc ngày'
+  const quickRanges = [
+    { label: 'Hôm nay', ...getTodayRange() },
+    { label: 'Tuần này', ...getCurrentWeekRange() },
+  ]
 
   const popup = open ? (
     <div
@@ -204,10 +319,36 @@ function DateRangePicker({
         </button>
       </div>
 
-      {/* Hint */}
-      <p className="px-4 py-1.5 text-[11px] text-muted-foreground">
-        {picking === 'start' ? '① Chọn ngày bắt đầu' : '② Chọn ngày kết thúc'}
-      </p>
+      <div className="flex flex-wrap gap-2 px-4 pb-2 pt-3">
+        {quickRanges.map((range) => {
+          const active = from === range.from && to === range.to
+
+          return (
+            <button
+              key={range.label}
+              type="button"
+              onClick={() => {
+                onChange(range.from, range.to)
+                setPicking('start')
+                setHovered(null)
+                setOpen(false)
+              }}
+              className={`inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-[11px] font-semibold transition-all ${
+                active
+                  ? 'border-primary/25 bg-primary text-white'
+                  : 'border-border bg-secondary/40 text-foreground hover:border-primary/30 hover:text-primary'
+              }`}
+            >
+              {range.label}
+              {range.label === 'Tuần này' ? (
+                <span className={`rounded-full px-1.5 py-0.5 text-[10px] ${active ? 'bg-white/20 text-white' : 'bg-primary/10 text-primary'}`}>
+                  Mặc định
+                </span>
+              ) : null}
+            </button>
+          )
+        })}
+      </div>
 
       {/* Day headers */}
       <div className="grid grid-cols-7 px-3 text-center">
@@ -220,15 +361,37 @@ function DateRangePicker({
       <div className="grid grid-cols-7 px-3 pb-3">
         {cells.map((day, i) =>
           day ? (
-            <button
-              key={day}
-              onClick={() => handleDayClick(day)}
-              onMouseEnter={() => picking === 'end' && setHovered(day)}
-              onMouseLeave={() => setHovered(null)}
-              className={`py-1.5 text-xs transition-all text-center ${dayClass(day)}`}
-            >
-              {Number(day.split('-')[2])}
-            </button>
+            (() => {
+              const { isStart, isEnd, inRange, isHovEnd } = getDayState(day)
+              const isEdge = isStart || isEnd || isHovEnd
+              const rangeClass = [
+                inRange || isEdge ? 'bg-primary/12' : '',
+                isStart && !isEnd ? 'rounded-l-xl' : '',
+                isEnd && !isStart ? 'rounded-r-xl' : '',
+                inRange && !isStart && !isEnd ? '' : '',
+              ].filter(Boolean).join(' ')
+              const buttonClass = isEdge
+                ? 'bg-primary text-white shadow-sm shadow-primary/25'
+                : inRange
+                  ? 'text-primary'
+                  : 'text-foreground hover:bg-secondary'
+
+              return (
+                <div
+                  key={day}
+                  onMouseEnter={() => picking === 'end' && setHovered(day)}
+                  onMouseLeave={() => setHovered(null)}
+                  className={`flex h-9 items-center justify-center ${rangeClass}`}
+                >
+                  <button
+                    onClick={() => handleDayClick(day)}
+                    className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-medium transition-all ${buttonClass}`}
+                  >
+                    {Number(day.split('-')[2])}
+                  </button>
+                </div>
+              )
+            })()
           ) : <div key={`pad-${i}`} />
         )}
       </div>
@@ -261,14 +424,17 @@ function DateRangePicker({
       <button
         ref={btnRef}
         onClick={openPicker}
-        className={`flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-all border ${
+        className={`flex h-10 w-full min-w-0 items-center justify-between gap-1.5 rounded-xl border px-3 text-sm font-semibold transition-all ${
           from || to
             ? 'bg-accent/15 border-accent/30 text-accent'
             : 'border-border text-muted-foreground hover:border-accent/40 hover:text-accent'
         }`}
       >
-        <CalendarRange className="h-3 w-3" />
-        {label}
+        <span className="flex min-w-0 items-center gap-1.5 overflow-hidden">
+          <CalendarRange className="h-3.5 w-3.5 flex-shrink-0" />
+          <span className="truncate whitespace-nowrap text-xs">{label}</span>
+        </span>
+        <ChevronRight className="h-3.5 w-3.5 flex-shrink-0 rotate-90" />
       </button>
       {typeof document !== 'undefined' && createPortal(popup, document.body)}
     </>
@@ -394,14 +560,16 @@ function StatusBadge({
   disabled: boolean
   onClick: (event: MouseEvent) => void
 }) {
-  const base = 'inline-flex shrink-0 cursor-pointer select-none items-center gap-1 whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px] font-semibold transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-50'
+  const interactive = status !== 'paid' && !disabled
+  const base = `inline-flex shrink-0 select-none items-center gap-1 whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px] font-semibold transition-all ${
+    interactive ? 'cursor-pointer active:scale-95' : 'cursor-default'
+  } ${disabled ? 'opacity-50' : ''}`
 
   if (status === 'paid') {
     return (
       <span
-        onClick={disabled ? undefined : onClick}
-        title="Nhấn để chuyển về chưa thanh toán"
-        className={`${base} border-green-200 bg-green-50 text-green-700 hover:bg-green-100`}
+        title="Project đã thanh toán"
+        className={`${base} border-green-200 bg-green-50 text-green-700`}
       >
         <CheckCircle2 className="h-2.5 w-2.5" /> Đã thanh toán
       </span>
@@ -441,7 +609,16 @@ function CreateProjectModal({
     setError(null)
 
     try {
-      await onCreate(form)
+      const trimmedName = form.name.trim()
+      if (!trimmedName) {
+        throw new Error('Tên project là bắt buộc')
+      }
+
+      await onCreate({
+        ...form,
+        name: trimmedName,
+        clientName: trimmedName,
+      })
       onClose()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Không thể tạo project')
@@ -479,9 +656,8 @@ function CreateProjectModal({
         <form onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-hidden min-h-0">
           <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
             {[
-              { id: 'name',        label: 'Tên project',    placeholder: 'Để trống sẽ lấy tên khách hàng', required: false },
-              { id: 'clientName',  label: 'Tên khách hàng', placeholder: 'Nguyễn Văn A',                   required: true  },
-              { id: 'clientPhone', label: 'Số điện thoại',  placeholder: 'Không bắt buộc',                 required: false },
+              { id: 'name', label: 'Tên project', placeholder: 'Ví dụ: Album cưới Minh Anh', required: true },
+              { id: 'clientPhone', label: 'Số điện thoại', placeholder: 'Không bắt buộc', required: false },
             ].map(({ id, label, placeholder, required }) => (
               <div key={id}>
                 <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -503,7 +679,7 @@ function CreateProjectModal({
                 )}
                 {id === 'name' && (
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Nếu bỏ trống, hệ thống dùng tên khách hàng làm tên thư mục.
+                    Tên này sẽ được dùng làm tên hiển thị của project.
                   </p>
                 )}
               </div>
@@ -687,13 +863,13 @@ function PaidAmountModal({
 export default function ProjectsPage() {
   const pathname = usePathname()
   const projectBasePath = pathname.startsWith('/admin') ? '/admin/projects' : '/projects'
-  const defaultToday = formatDateInputValue(new Date())
+  const defaultWeekRange = getCurrentWeekRange()
   const [projects, setProjects] = useState<Project[]>([])
   const [searchInput, setSearchInput] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | ProjectStatus>('all')
-  const [dateFromInput, setDateFromInput] = useState(defaultToday)
-  const [dateToInput, setDateToInput] = useState(defaultToday)
+  const [dateFromInput, setDateFromInput] = useState(defaultWeekRange.from)
+  const [dateToInput, setDateToInput] = useState(defaultWeekRange.to)
   const [showCreate, setShowCreate] = useState(false)
   const [paymentDialogProject, setPaymentDialogProject] = useState<Project | null>(null)
   const [loading, setLoading] = useState(true)
@@ -703,6 +879,7 @@ export default function ProjectsPage() {
   const [copiedProjectId, setCopiedProjectId] = useState<string | null>(null)
   const [pagination, setPagination] = useState(INITIAL_PAGINATION)
   const [stats, setStats] = useState(INITIAL_STATS)
+  const [cols, setCols] = useState<1 | 2 | 3>(1)
   const loadMoreRef = useRef<HTMLDivElement | null>(null)
   const requestIdRef = useRef(0)
   const paginationRef = useRef(INITIAL_PAGINATION)
@@ -821,21 +998,11 @@ export default function ProjectsPage() {
       return
     }
 
-    if (current.status !== 'paid') {
-      setPaymentDialogProject(current)
+    if (current.status === 'paid') {
       return
     }
 
-    try {
-      setBusyProjectId(projectId)
-      await updateProjectStatus(projectId, 'waiting_payment', null)
-      await loadProjects({ reset: true })
-      setError(null)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Không thể cập nhật trạng thái project')
-    } finally {
-      setBusyProjectId(null)
-    }
+    setPaymentDialogProject(current)
   }
 
   async function handleConfirmPaidStatus(paidAmount: number | null) {
@@ -895,8 +1062,8 @@ export default function ProjectsPage() {
   ]
 
   return (
-    <div className="mx-auto max-w-5xl space-y-4 p-4 md:p-6">
-      <div className="hidden items-center justify-between gap-3 md:flex">
+    <div className="mx-auto flex h-full max-w-5xl min-h-0 flex-col gap-4 p-4 md:p-6">
+      <div className="hidden flex-shrink-0 items-center justify-between gap-3 md:flex">
         <div>
           <h1 className="flex items-center gap-2.5 text-2xl font-bold">
             <span className="hero-gradient flex h-9 w-9 shrink-0 items-center justify-center rounded-xl shadow-sm shadow-primary/30">
@@ -917,74 +1084,82 @@ export default function ProjectsPage() {
         </button>
       </div>
 
-      <div className="flex items-center justify-between md:hidden">
-        <div className="flex items-center gap-2">
-          <span className="rounded-xl border border-border bg-white px-3 py-1.5 text-xs font-semibold text-foreground shadow-sm">
-            {stats.all} <span className="font-normal text-muted-foreground">projects</span>
-          </span>
-          <span className="rounded-xl border border-green-200 bg-green-50 px-3 py-1.5 text-xs font-semibold text-green-700">
-            {stats.paid} <span className="font-normal">đã thanh toán</span>
-          </span>
-        </div>
-        <button
-          id="btn-create-project-mobile"
-          onClick={() => setShowCreate(true)}
-          className="flex shrink-0 items-center gap-1.5 rounded-xl bg-primary px-3.5 py-2 text-xs font-semibold text-white shadow-sm shadow-primary/30 transition-all hover:bg-primary/90 active:scale-95"
-        >
-          <Plus className="h-4 w-4" /> Tạo mới
-        </button>
-      </div>
-
       {error && (
-        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+        <div className="flex-shrink-0 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
           {error}
         </div>
       )}
 
       {/* ── Compact filter bar ── */}
-      <div className="rounded-2xl border border-border bg-white shadow-sm overflow-hidden">
+      <div className="flex-shrink-0 overflow-hidden rounded-2xl border border-border bg-white shadow-sm">
         {/* Search */}
-        <div className="relative border-b border-border/60">
-          <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <input
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            placeholder="Tìm project, khách hàng, số điện thoại..."
-            className="w-full bg-transparent py-3 pl-10 pr-4 text-sm outline-none placeholder:text-muted-foreground/60"
-          />
+        <div className="flex items-center gap-2 border-b border-border/60 px-3 py-2.5 md:block md:p-0">
+          <div className="relative min-w-0 flex-1">
+            <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              placeholder="Tìm project, khách hàng, số điện thoại..."
+              className="h-10 w-full rounded-xl bg-transparent pl-11 pr-4 text-[15px] outline-none placeholder:text-muted-foreground/60 md:h-auto md:rounded-none md:py-3 md:pl-10 md:text-sm"
+            />
+          </div>
+
+          <button
+            id="btn-create-project-mobile"
+            onClick={() => setShowCreate(true)}
+            className="flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-primary px-4 text-sm font-semibold text-white shadow-sm shadow-primary/30 transition-all hover:bg-primary/90 active:scale-95 md:hidden"
+          >
+            <Plus className="h-4 w-4" /> Tạo mới
+          </button>
         </div>
 
-        {/* Status + picker — single scrollable row */}
-        <div className="flex items-center gap-2 overflow-x-auto px-3 py-2.5 scrollbar-hide">
-          {/* Status chips */}
-          {statusOptions.map(({ key, label, count }) => (
-            <button
-              key={key}
-              onClick={() => setStatusFilter(key)}
-              className={`flex shrink-0 items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold transition-all ${
-                statusFilter === key
-                  ? 'bg-primary text-white shadow-sm shadow-primary/30'
-                  : 'border border-border text-muted-foreground hover:border-primary/40 hover:text-primary'
-              }`}
-            >
-              {label} <span className={statusFilter === key ? 'opacity-75' : 'opacity-50'}>{count}</span>
-            </button>
-          ))}
-
-          {/* Divider */}
-          <div className="h-5 w-px flex-shrink-0 bg-border/60" />
+        {/* Status + date + toggle — 3-col grid, no overflow */}
+        <div className="grid items-center gap-2 px-3 py-3" style={{ gridTemplateColumns: '1fr 1fr auto' }}>
+          {/* Status */}
+          <StatusSelect
+            value={statusFilter}
+            onChange={(v) => setStatusFilter(v as 'all' | ProjectStatus)}
+            options={statusOptions}
+          />
 
           {/* Date range picker */}
-          <DateRangePicker
-            from={dateFromInput}
-            to={dateToInput}
-            onChange={(f, t) => { setDateFromInput(f); setDateToInput(t) }}
-          />
+          <div className="min-w-0">
+            <DateRangePicker
+              from={dateFromInput}
+              to={dateToInput}
+              onChange={(f, t) => { setDateFromInput(f); setDateToInput(t) }}
+            />
+          </div>
+
+          {/* Column toggle */}
+          <div className="gallery-cols-toggle flex-shrink-0">
+            {([1, 2, 3] as const).map((n) => {
+              const icons = {
+                1: <Square className="h-4 w-4" />,
+                2: <Columns2 className="h-4 w-4" />,
+                3: <LayoutGrid className="h-4 w-4" />,
+              }
+              return (
+                <button
+                  key={n}
+                  type="button"
+                  title={`${n} cột`}
+                  onClick={() => setCols(n)}
+                  className={`gallery-cols-btn ${
+                    cols === n ? 'gallery-cols-btn-active' : 'gallery-cols-btn-idle'
+                  }`}
+                >
+                  {icons[n]}
+                </button>
+              )
+            })}
+          </div>
         </div>
       </div>
 
+      <div className="min-h-0 flex-1 overflow-y-auto pb-20 md:pb-0">
 
-      <div className="space-y-2.5">
+        <div className={cols === 1 ? 'space-y-2.5' : `grid gap-3 ${cols === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
         {loading && (
           <div className="rounded-2xl border border-border bg-white p-12 text-center shadow-sm">
             <div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-2 border-primary/20 border-t-primary" />
@@ -1006,72 +1181,114 @@ export default function ProjectsPage() {
           const isBusy = busyProjectId === project.id
           const isPaid = project.status === 'paid'
 
+          if (cols === 1) {
+            // ── List layout ──
+            return (
+              <Link
+                key={project.id}
+                href={`${projectBasePath}/${project.id}`}
+                className="group flex cursor-pointer items-stretch overflow-hidden rounded-2xl border border-border bg-white shadow-sm transition-all hover:border-primary/25 hover:shadow-md"
+              >
+                {/* Left accent bar */}
+                <div
+                  className="w-1 flex-shrink-0"
+                  style={{
+                    background: isPaid
+                      ? 'linear-gradient(180deg, hsl(160,84%,39%), hsl(145,63%,49%))'
+                      : 'linear-gradient(180deg, hsl(38,92%,50%), hsl(43,96%,56%))',
+                  }}
+                />
+
+                {/* Icon */}
+                <div className="flex flex-shrink-0 items-center px-3.5">
+                  <div className={`flex h-9 w-9 items-center justify-center rounded-xl ${
+                    isPaid ? 'bg-emerald-50' : 'bg-amber-50'
+                  }`}>
+                    <FolderOpen className={`h-4.5 w-4.5 ${isPaid ? 'text-emerald-600' : 'text-amber-500'}`} />
+                  </div>
+                </div>
+
+                {/* Content — 2 rows */}
+                <div className="min-w-0 flex-1 py-2.5 pr-2">
+                  {/* Row 1: name + status + menu */}
+                  <div className="flex items-center gap-2">
+                    <p className="min-w-0 flex-1 truncate text-sm font-semibold leading-tight transition-colors group-hover:text-primary">
+                      {project.name}
+                    </p>
+                    <div
+                      className="flex flex-shrink-0 items-center gap-1"
+                      onClick={(e) => e.preventDefault()}
+                    >
+                      <StatusBadge
+                        status={project.status}
+                        disabled={isBusy}
+                        onClick={(e) => { e.preventDefault(); void handleToggleStatus(project.id) }}
+                      />
+                      <ActionMenu
+                        shareToken={project.shareToken}
+                        status={project.status}
+                        disabled={isBusy}
+                        onToggleStatus={() => handleToggleStatus(project.id)}
+                        onDelete={() => handleDelete(project.id)}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Row 2: metadata + copy link */}
+                  <div className="mt-1 flex items-center justify-between gap-2">
+                    <div className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
+                      {project.clientPhone && (
+                        <span className="flex-shrink-0">{maskPhone(project.clientPhone)}</span>
+                      )}
+                      <span className="flex flex-shrink-0 items-center gap-0.5">
+                        <ImageIcon className="h-3 w-3" />
+                        {project.photos.length} ảnh
+                      </span>
+                      <span className="truncate">{formatDate(project.createdAt)}</span>
+                      {project.paidAmount != null && (
+                        <span className="flex-shrink-0 font-medium text-emerald-600">
+                          {formatCurrency(project.paidAmount)}
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={(e) => { e.preventDefault(); handleCopyShareLink(project) }}
+                      disabled={isBusy}
+                      className="flex-shrink-0 rounded-full border border-border bg-white px-2.5 py-0.5 text-[10px] font-semibold text-muted-foreground transition-all hover:border-primary/40 hover:text-primary disabled:opacity-50"
+                    >
+                      {copiedProjectId === project.id ? '✓ Đã copy' : 'Copy link'}
+                    </button>
+                  </div>
+                </div>
+
+                <ChevronRight className="mr-3 h-4 w-4 flex-shrink-0 self-center text-muted-foreground/30 transition-transform group-hover:translate-x-0.5" />
+              </Link>
+            )
+          }
+
+          // ── Grid layout ──
           return (
             <Link
               key={project.id}
               href={`${projectBasePath}/${project.id}`}
-              className="group block cursor-pointer rounded-2xl border border-border bg-white shadow-sm transition-all hover:border-primary/30 hover:shadow-md"
+              className="group block cursor-pointer rounded-2xl border border-border bg-white shadow-sm transition-all hover:border-primary/25 hover:shadow-md overflow-hidden"
             >
+              {/* Top area with gradient bg */}
               <div
-                className="h-0.5 w-full rounded-t-2xl transition-all"
+                className="flex items-center justify-between px-3 pt-3 pb-2.5"
                 style={{
                   background: isPaid
-                    ? 'linear-gradient(90deg, hsl(160,84%,39%), hsl(145,63%,49%))'
-                    : 'linear-gradient(90deg, hsl(38,92%,50%), hsl(43,96%,56%))',
+                    ? 'linear-gradient(135deg, hsl(160,84%,97%), hsl(145,63%,94%))'
+                    : 'linear-gradient(135deg, hsl(38,92%,97%), hsl(43,96%,93%))',
                 }}
-              />
-              <div className="flex items-center gap-3 p-4">
-                <div className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl transition-colors ${
-                  isPaid ? 'bg-green-50' : 'bg-amber-50'
+              >
+                <div className={`flex h-9 w-9 items-center justify-center rounded-xl ${
+                  isPaid ? 'bg-emerald-100' : 'bg-amber-100'
                 }`}>
-                  <FolderOpen className={`h-5 w-5 ${isPaid ? 'text-green-600' : 'text-amber-500'}`} />
+                  <FolderOpen className={`h-4.5 w-4.5 ${isPaid ? 'text-emerald-600' : 'text-amber-500'}`} />
                 </div>
-
-                <div className="min-w-0 flex-1">
-                  <p className="mb-0.5 truncate text-sm font-semibold transition-colors group-hover:text-primary">
-                    {project.name}
-                  </p>
-                  <p className="truncate text-xs text-muted-foreground">
-                    {project.clientName}
-                    {maskPhone(project.clientPhone) ? ` • ${maskPhone(project.clientPhone)}` : ''}
-                  </p>
-                  {project.paidAmount != null ? (
-                    <p className="mt-1 truncate text-xs font-medium text-emerald-700">
-                      Đã thu {formatCurrency(project.paidAmount)}
-                    </p>
-                  ) : null}
-                  <div className="mt-1.5 flex items-center gap-3 text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <ImageIcon className="h-3 w-3" />
-                      {project.photos.length} ảnh
-                    </span>
-                    <span>{formatDate(project.createdAt)}</span>
-                  </div>
-                </div>
-
-                <div
-                  className="flex shrink-0 items-start gap-2"
-                  onClick={(event) => event.preventDefault()}
-                >
-                  <div className="flex flex-col items-end gap-1.5">
-                    <StatusBadge
-                      status={project.status}
-                      disabled={isBusy}
-                      onClick={(event) => {
-                        event.preventDefault()
-                        void handleToggleStatus(project.id)
-                      }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => handleCopyShareLink(project)}
-                      disabled={isBusy}
-                      className="rounded-full border border-border bg-white px-2.5 py-1 text-[11px] font-semibold text-muted-foreground transition-all hover:border-primary/40 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {copiedProjectId === project.id ? 'Da copy' : 'Copy link'}
-                    </button>
-                  </div>
-
+                <div onClick={(e) => e.preventDefault()}>
                   <ActionMenu
                     shareToken={project.shareToken}
                     status={project.status}
@@ -1080,32 +1297,51 @@ export default function ProjectsPage() {
                     onDelete={() => handleDelete(project.id)}
                   />
                 </div>
+              </div>
 
-                <ChevronRight className="h-4 w-4 flex-shrink-0 text-muted-foreground/30 transition-transform group-hover:translate-x-0.5" />
+              {/* Body */}
+              <div className="px-3 pb-3 pt-2">
+                <p className="truncate text-sm font-semibold leading-snug transition-colors group-hover:text-primary">
+                  {project.name}
+                </p>
+                <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                  {project.clientName}
+                  {maskPhone(project.clientPhone) ? ` • ${maskPhone(project.clientPhone)}` : ''}
+                </p>
+
+                {/* Footer */}
+                <div className="mt-2.5 flex items-center justify-between gap-1">
+                  <StatusBadge
+                    status={project.status}
+                    disabled={isBusy}
+                    onClick={(e) => { e.preventDefault(); void handleToggleStatus(project.id) }}
+                  />
+                  <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <ImageIcon className="h-3 w-3" />
+                    {project.photos.length}
+                  </span>
+                </div>
               </div>
             </Link>
           )
         })}
-      </div>
-
-      {!loading && projects.length > 0 && (
-        <div className="space-y-3">
-          <div className="rounded-2xl border border-border bg-white px-4 py-3 text-center text-sm text-muted-foreground shadow-sm">
-            Đang hiển thị {projects.length}/{pagination.total} project
-          </div>
-
-          {loadingMore && (
-            <div className="rounded-2xl border border-border bg-white p-4 text-center shadow-sm">
-              <div className="mx-auto mb-2 h-6 w-6 animate-spin rounded-full border-2 border-primary/20 border-t-primary" />
-              <p className="text-sm text-muted-foreground">Đang tải thêm project...</p>
-            </div>
-          )}
-
-          {!loadingMore && pagination.hasMore && (
-            <div ref={loadMoreRef} className="h-12" />
-          )}
         </div>
-      )}
+
+        {!loading && projects.length > 0 && (
+          <div className="mt-3 space-y-3">
+            {loadingMore && (
+              <div className="rounded-2xl border border-border bg-white p-4 text-center shadow-sm">
+                <div className="mx-auto mb-2 h-6 w-6 animate-spin rounded-full border-2 border-primary/20 border-t-primary" />
+                <p className="text-sm text-muted-foreground">Đang tải thêm project...</p>
+              </div>
+            )}
+
+            {!loadingMore && pagination.hasMore && (
+              <div ref={loadMoreRef} className="h-12" />
+            )}
+          </div>
+        )}
+      </div>
 
       {showCreate && (
         <CreateProjectModal
