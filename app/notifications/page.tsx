@@ -287,21 +287,41 @@ export default function NotificationsPage() {
   return (
     <div className="mx-auto max-w-5xl px-4 pb-6 pt-3 md:px-6 md:py-6">
       <section className="mt-3 md:mt-0">
-        <div className="flex flex-col gap-3">
-          <div className="min-w-0">
-            <h1 className="text-[1.8rem] font-bold leading-tight tracking-[-0.03em] text-foreground md:text-3xl">
-              Thông báo
-            </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Cập nhật mới nhất về project, thanh toán và lượt xem link share.
-            </p>
+        <div className="relative overflow-hidden rounded-[28px] border border-sky-100 bg-[linear-gradient(135deg,#eff6ff_0%,#f8fbff_45%,#eefaf7_100%)] px-5 py-6 shadow-[0_18px_50px_-34px_rgba(37,99,235,0.35)] md:px-6">
+          <div className="auth-blob auth-blob-1 opacity-[0.12]" />
+          <div className="auth-blob auth-blob-2 opacity-[0.14]" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.95),transparent_38%),radial-gradient(circle_at_bottom_right,rgba(14,165,233,0.10),transparent_32%)]" />
+          <div
+            className="absolute inset-0 opacity-[0.42]"
+            style={{
+              backgroundImage:
+                "radial-gradient(circle at 1px 1px, rgba(37,99,235,0.08) 1px, transparent 0)",
+              backgroundSize: "18px 18px",
+            }}
+          />
+
+          <div className="relative z-10 min-w-0">
+            <div className="flex items-start gap-3">
+              <div className="hero-gradient flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl shadow-sm shadow-primary/30">
+                <Bell className="h-5 w-5 text-white" />
+              </div>
+              <div className="min-w-0">
+                <h1 className="text-[1.8rem] font-bold leading-tight tracking-[-0.03em] text-foreground md:text-3xl">
+                  Thông báo
+                </h1>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Cập nhật mới nhất về project, thanh toán và lượt xem link share.
+                </p>
+              </div>
+            </div>
+
             {!loading ? (
-              <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground md:flex-nowrap">
-                <span className="inline-flex h-9 items-center gap-1.5 rounded-full bg-primary/8 px-3.5 text-sm font-semibold text-primary">
+              <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-muted-foreground md:flex-nowrap">
+                <span className="inline-flex h-9 items-center gap-1.5 rounded-full border border-primary/10 bg-white/85 px-3.5 text-sm font-semibold text-primary shadow-sm backdrop-blur-sm">
                   <span className="h-2 w-2 rounded-full bg-primary" />
                   {unreadCount > 0 ? `${unreadCount} chưa đọc` : "Đã đọc hết"}
                 </span>
-                <span className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-secondary px-3.5 text-sm font-medium">
+                <span className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-white/70 bg-white/70 px-3.5 text-sm font-medium shadow-sm backdrop-blur-sm">
                   <Bell className="h-3.5 w-3.5" />
                   {notifications.length} thông báo
                 </span>
@@ -309,7 +329,7 @@ export default function NotificationsPage() {
                   type="button"
                   onClick={() => void handleMarkAllAsRead()}
                   disabled={markingAll || unreadCount === 0}
-                  className="inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-full border border-border bg-white px-3.5 text-sm font-medium text-foreground transition-colors hover:border-primary/20 hover:text-primary disabled:cursor-not-allowed disabled:opacity-45 md:ml-0.5"
+                  className="inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-full border border-white/80 bg-white/80 px-3.5 text-sm font-medium text-foreground shadow-sm backdrop-blur-sm transition-colors hover:border-primary/20 hover:text-primary disabled:cursor-not-allowed disabled:opacity-45 md:ml-0.5"
                 >
                   {markingAll ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
