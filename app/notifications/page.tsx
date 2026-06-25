@@ -350,7 +350,7 @@ export default function NotificationsPage() {
         </div>
       ) : null}
 
-      <section className="mt-5">
+      <section className="mt-7">
         <div className="mb-3 flex items-end justify-between gap-3">
           <div>
             <h2 className="text-lg font-bold text-foreground md:text-xl">
@@ -459,21 +459,21 @@ function NotificationRow({
           : undefined
       }
       className={cn(
-        "relative flex gap-3 px-3.5 py-3 transition-colors md:px-4 md:py-3.5",
+        "relative flex gap-3 px-3.5 py-4 transition-colors md:px-4 md:py-4.5",
         isUnread ? "bg-primary/[0.055]" : "bg-white hover:bg-slate-50/80",
         href ? "cursor-pointer" : "",
       )}
     >
       <div
         className={cn(
-          "absolute inset-y-3 left-0 w-1 rounded-r-full",
+          "absolute inset-y-4 left-0 w-1 rounded-r-full",
           isUnread ? "hero-gradient" : "bg-transparent",
         )}
       />
 
       <div
         className={cn(
-          "mt-0.5 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border shadow-sm",
+          "mt-1 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border shadow-sm",
           meta.iconClassName,
         )}
       >
