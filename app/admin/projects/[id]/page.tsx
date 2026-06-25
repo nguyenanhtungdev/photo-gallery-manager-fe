@@ -285,15 +285,19 @@ function EditProjectModal({
 
 function DeletePhotoModal({
   photoFilename,
+  photoPreviewUrl,
   onClose,
   onConfirm,
   submitting,
 }: {
   photoFilename: string;
+  photoPreviewUrl: string;
   onClose: () => void;
   onConfirm: () => Promise<void>;
   submitting: boolean;
 }) {
+  const safePreviewUrl = photoPreviewUrl.trim();
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div
@@ -319,15 +323,29 @@ function DeletePhotoModal({
         </div>
 
         <div className="space-y-4 p-5">
-          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            Bạn có chắc chắn muốn ẩn ảnh{" "}
-            <span className="font-semibold">{photoFilename}</span> không?
+          <div className="overflow-hidden rounded-2xl border border-border bg-secondary/30">
+            <div className="relative aspect-[4/3] w-full">
+              {safePreviewUrl ? (
+                <Image
+                  src={safePreviewUrl}
+                  alt={photoFilename}
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 768px) 80vw, 360px"
+                  unoptimized
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center bg-secondary text-sm font-medium text-muted-foreground">
+                  Không có ảnh xem trước
+                </div>
+              )}
+            </div>
           </div>
 
-          <p className="text-sm leading-relaxed text-muted-foreground">
-            Ảnh sẽ chỉ bị ẩn khỏi project và gallery, không xóa file gốc trên
-            storage.
-          </p>
+          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            Bạn có chắc chắn muốn Xóa ảnh{" "}
+            <span className="font-semibold">{photoFilename}</span> không?
+          </div>
 
           <div className="flex gap-3 pt-1">
             <button
@@ -344,7 +362,7 @@ function DeletePhotoModal({
               disabled={submitting}
               className="flex-1 rounded-xl bg-red-600 py-3 text-sm font-semibold text-white shadow-sm shadow-red-500/20 transition-all hover:bg-red-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {submitting ? "Đang ẩn..." : "Ẩn ảnh"}
+              {submitting ? "Đang xóa..." : "Xóa ảnh"}
             </button>
           </div>
         </div>
@@ -445,7 +463,7 @@ function PhotoLightbox({
             onClick={() => onDelete(photo.id)}
             disabled={deletingId === photo.id}
             className="flex h-9 w-9 items-center justify-center rounded-xl bg-red-500/20 text-red-400 transition-all hover:bg-red-500/30 hover:text-red-300 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
-            title="Ẩn ảnh"
+            title="Xóa ảnh"
           >
             <Trash2 className="h-4 w-4" />
           </button>
@@ -540,7 +558,9 @@ export default function ProjectDetailPage({
   const projectBasePath = pathname.startsWith("/admin")
     ? "/admin/projects"
     : "/projects";
-  const apiScope: ProjectApiScope = pathname.startsWith("/admin") ? "admin" : "user";
+  const apiScope: ProjectApiScope = pathname.startsWith("/admin")
+    ? "admin"
+    : "user";
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -559,6 +579,7 @@ export default function ProjectDetailPage({
   const [deletePhotoTarget, setDeletePhotoTarget] = useState<{
     id: string;
     filename: string;
+    previewUrl: string;
   } | null>(null);
   const [visiblePhotoCount, setVisiblePhotoCount] = useState(PHOTO_BATCH_SIZE);
   const [photoGridLayout, setPhotoGridLayout] = useState<PhotoGridLayout>(2);
@@ -860,11 +881,15 @@ export default function ProjectDetailPage({
         async (file, index) => {
           const contentType = file.type || "image/jpeg";
           const [presign, dimensions] = await Promise.all([
-            createProjectPhotoUploadUrl(project.id, {
-              fileName: file.name,
-              contentType,
-              fileSize: file.size,
-            }, apiScope),
+            createProjectPhotoUploadUrl(
+              project.id,
+              {
+                fileName: file.name,
+                contentType,
+                fileSize: file.size,
+              },
+              apiScope,
+            ),
             readImageDimensions(file),
           ]);
 
@@ -904,14 +929,18 @@ export default function ProjectDetailPage({
           90 + Math.round(((index + 1) / preparedUploads.length) * 10),
         );
 
-        currentProject = await addProjectPhoto(project.id, {
-          key: preparedUpload.key,
-          filename: preparedUpload.file.name,
-          contentType: preparedUpload.contentType,
-          fileSize: preparedUpload.file.size,
-          width: preparedUpload.dimensions.width,
-          height: preparedUpload.dimensions.height,
-        }, apiScope);
+        currentProject = await addProjectPhoto(
+          project.id,
+          {
+            key: preparedUpload.key,
+            filename: preparedUpload.file.name,
+            contentType: preparedUpload.contentType,
+            fileSize: preparedUpload.file.size,
+            width: preparedUpload.dimensions.width,
+            height: preparedUpload.dimensions.height,
+          },
+          apiScope,
+        );
 
         setProject(currentProject);
       }
@@ -939,7 +968,11 @@ export default function ProjectDetailPage({
 
     try {
       setRemovingPhotoId(photoId);
-      const updatedProject = await deleteProjectPhoto(project.id, photoId, apiScope);
+      const updatedProject = await deleteProjectPhoto(
+        project.id,
+        photoId,
+        apiScope,
+      );
       setProject(updatedProject);
       setError(null);
       // If lightbox is open and viewing the deleted photo, close or navigate
@@ -970,7 +1003,11 @@ export default function ProjectDetailPage({
       return;
     }
 
-    setDeletePhotoTarget({ id: photo.id, filename: photo.filename });
+    setDeletePhotoTarget({
+      id: photo.id,
+      filename: photo.filename,
+      previewUrl: photo.previewUrl,
+    });
   }
 
   async function confirmDeletePhoto() {
@@ -1295,7 +1332,7 @@ export default function ProjectDetailPage({
                   1: <Square className="h-4 w-4" />,
                   2: <Columns2 className="h-4 w-4" />,
                   3: <LayoutGrid className="h-4 w-4" />,
-                }
+                };
                 return (
                   <button
                     key={n}
@@ -1304,13 +1341,13 @@ export default function ProjectDetailPage({
                     onClick={() => setPhotoGridLayout(n)}
                     className={`gallery-cols-btn ${
                       photoGridLayout === n
-                        ? 'gallery-cols-btn-active'
-                        : 'gallery-cols-btn-idle'
+                        ? "gallery-cols-btn-active"
+                        : "gallery-cols-btn-idle"
                     }`}
                   >
                     {icons[n]}
                   </button>
-                )
+                );
               })}
             </div>
           </div>
@@ -1401,7 +1438,7 @@ export default function ProjectDetailPage({
                             }}
                             disabled={removingPhotoId === photo.id}
                             className="flex h-7 w-7 items-center justify-center rounded-lg bg-red-500/80 text-white backdrop-blur-sm transition-all hover:bg-red-600 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
-                            title="Ẩn ảnh"
+                            title="Xóa ảnh"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
@@ -1531,6 +1568,7 @@ export default function ProjectDetailPage({
       {deletePhotoTarget ? (
         <DeletePhotoModal
           photoFilename={deletePhotoTarget.filename}
+          photoPreviewUrl={deletePhotoTarget.previewUrl}
           onClose={() => setDeletePhotoTarget(null)}
           onConfirm={confirmDeletePhoto}
           submitting={removingPhotoId === deletePhotoTarget.id}

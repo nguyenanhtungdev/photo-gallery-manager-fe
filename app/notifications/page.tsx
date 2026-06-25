@@ -1,7 +1,7 @@
-'use client'
+"use client";
 
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Bell,
   Check,
@@ -11,7 +11,7 @@ import {
   FolderPlus,
   Loader2,
   WalletCards,
-} from 'lucide-react'
+} from "lucide-react";
 import {
   emitUnreadNotificationsCount,
   listNotifications,
@@ -25,232 +25,263 @@ import {
   type NotificationReadEventDetail,
   type NotificationType,
   type NotificationsAllReadEventDetail,
-} from '@/lib/notifications-api'
-import { cn, formatDate } from '@/lib/utils'
+} from "@/lib/notifications-api";
+import { cn, formatDate } from "@/lib/utils";
 
-const PAGE_SIZE = 20
+const PAGE_SIZE = 20;
 
 const TYPE_META: Record<
   NotificationType,
   {
-    icon: typeof Eye
-    label: string
-    iconClassName: string
-    badgeClassName: string
+    icon: typeof Eye;
+    label: string;
+    iconClassName: string;
+    badgeClassName: string;
   }
 > = {
   share_accessed: {
     icon: Eye,
-    label: 'Truy cập link',
-    iconClassName: 'border-sky-200 bg-sky-50 text-sky-700',
-    badgeClassName: 'bg-sky-50 text-sky-700 ring-1 ring-sky-200/80',
+    label: "Truy cập link",
+    iconClassName: "border-sky-200 bg-sky-50 text-sky-700",
+    badgeClassName: "bg-sky-50 text-sky-700 ring-1 ring-sky-200/80",
   },
   project_created: {
     icon: FolderPlus,
-    label: 'Project mới',
-    iconClassName: 'border-violet-200 bg-violet-50 text-violet-700',
-    badgeClassName: 'bg-violet-50 text-violet-700 ring-1 ring-violet-200/80',
+    label: "Project mới",
+    iconClassName: "border-violet-200 bg-violet-50 text-violet-700",
+    badgeClassName: "bg-violet-50 text-violet-700 ring-1 ring-violet-200/80",
   },
   payment_updated: {
     icon: WalletCards,
-    label: 'Thanh toán',
-    iconClassName: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-    badgeClassName: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/80',
+    label: "Thanh toán",
+    iconClassName: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    badgeClassName: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/80",
   },
-}
+};
 
 export default function NotificationsPage() {
-  const router = useRouter()
-  const [notifications, setNotifications] = useState<AppNotification[]>([])
-  const [unreadCount, setUnreadCount] = useState(0)
-  const [nextOffset, setNextOffset] = useState(0)
-  const [hasMore, setHasMore] = useState(false)
-  const [loading, setLoading] = useState(true)
-  const [loadingMore, setLoadingMore] = useState(false)
-  const [updatingId, setUpdatingId] = useState<string | null>(null)
-  const [markingAll, setMarkingAll] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const router = useRouter();
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [nextOffset, setNextOffset] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [markingAll, setMarkingAll] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    let active = true
+    let active = true;
 
     async function loadInitialNotifications() {
       try {
         const data = await listNotifications({
           offset: 0,
           limit: PAGE_SIZE,
-        })
+        });
 
         if (!active) {
-          return
+          return;
         }
 
-        setNotifications(data.notifications)
-        setUnreadCount(data.unreadCount)
-        emitUnreadNotificationsCount(data.unreadCount)
-        setNextOffset(data.pagination.nextOffset)
-        setHasMore(data.pagination.hasMore)
-        setError(null)
+        setNotifications(data.notifications);
+        setUnreadCount(data.unreadCount);
+        emitUnreadNotificationsCount(data.unreadCount);
+        setNextOffset(data.pagination.nextOffset);
+        setHasMore(data.pagination.hasMore);
+        setError(null);
       } catch (err) {
         if (active) {
-          setError(err instanceof Error ? err.message : 'Không thể tải thông báo')
+          setError(
+            err instanceof Error ? err.message : "Không thể tải thông báo",
+          );
         }
       } finally {
         if (active) {
-          setLoading(false)
+          setLoading(false);
         }
       }
     }
 
-    void loadInitialNotifications()
+    void loadInitialNotifications();
 
     return () => {
-      active = false
-    }
-  }, [])
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     function handleNotificationCreated(event: Event) {
-      const customEvent = event as CustomEvent<NotificationCreatedEventDetail>
-      const detail = customEvent.detail
+      const customEvent = event as CustomEvent<NotificationCreatedEventDetail>;
+      const detail = customEvent.detail;
       if (!detail?.notification) {
-        return
+        return;
       }
 
       setNotifications((current) => {
-        const exists = current.some((item) => item.id === detail.notification.id)
+        const exists = current.some(
+          (item) => item.id === detail.notification.id,
+        );
         if (exists) {
-          return current
+          return current;
         }
 
-        return [detail.notification, ...current]
-      })
-      setUnreadCount(detail.unreadCount)
-      setError(null)
+        return [detail.notification, ...current];
+      });
+      setUnreadCount(detail.unreadCount);
+      setError(null);
     }
 
     function handleNotificationRead(event: Event) {
-      const customEvent = event as CustomEvent<NotificationReadEventDetail>
-      const detail = customEvent.detail
+      const customEvent = event as CustomEvent<NotificationReadEventDetail>;
+      const detail = customEvent.detail;
       if (!detail?.notificationId) {
-        return
+        return;
       }
 
-      setNotifications((current) => current.map((item) => (
-        item.id === detail.notificationId
-          ? { ...item, readAt: detail.readAt }
-          : item
-      )))
-      setUnreadCount(detail.unreadCount)
+      setNotifications((current) =>
+        current.map((item) =>
+          item.id === detail.notificationId
+            ? { ...item, readAt: detail.readAt }
+            : item,
+        ),
+      );
+      setUnreadCount(detail.unreadCount);
     }
 
     function handleAllNotificationsRead(event: Event) {
-      const customEvent = event as CustomEvent<NotificationsAllReadEventDetail>
-      const detail = customEvent.detail
+      const customEvent = event as CustomEvent<NotificationsAllReadEventDetail>;
+      const detail = customEvent.detail;
       if (!detail?.readAt) {
-        return
+        return;
       }
 
-      setNotifications((current) => current.map((item) => ({
-        ...item,
-        readAt: item.readAt ?? detail.readAt,
-      })))
-      setUnreadCount(detail.unreadCount)
+      setNotifications((current) =>
+        current.map((item) => ({
+          ...item,
+          readAt: item.readAt ?? detail.readAt,
+        })),
+      );
+      setUnreadCount(detail.unreadCount);
     }
 
-    window.addEventListener(NOTIFICATION_CREATED_EVENT, handleNotificationCreated)
-    window.addEventListener(NOTIFICATION_READ_EVENT, handleNotificationRead)
-    window.addEventListener(NOTIFICATIONS_ALL_READ_EVENT, handleAllNotificationsRead)
+    window.addEventListener(
+      NOTIFICATION_CREATED_EVENT,
+      handleNotificationCreated,
+    );
+    window.addEventListener(NOTIFICATION_READ_EVENT, handleNotificationRead);
+    window.addEventListener(
+      NOTIFICATIONS_ALL_READ_EVENT,
+      handleAllNotificationsRead,
+    );
 
     return () => {
-      window.removeEventListener(NOTIFICATION_CREATED_EVENT, handleNotificationCreated)
-      window.removeEventListener(NOTIFICATION_READ_EVENT, handleNotificationRead)
-      window.removeEventListener(NOTIFICATIONS_ALL_READ_EVENT, handleAllNotificationsRead)
-    }
-  }, [])
+      window.removeEventListener(
+        NOTIFICATION_CREATED_EVENT,
+        handleNotificationCreated,
+      );
+      window.removeEventListener(
+        NOTIFICATION_READ_EVENT,
+        handleNotificationRead,
+      );
+      window.removeEventListener(
+        NOTIFICATIONS_ALL_READ_EVENT,
+        handleAllNotificationsRead,
+      );
+    };
+  }, []);
 
   async function loadMoreNotifications() {
     try {
-      setLoadingMore(true)
+      setLoadingMore(true);
 
       const data = await listNotifications({
         offset: nextOffset,
         limit: PAGE_SIZE,
-      })
+      });
 
-      setNotifications((current) => [...current, ...data.notifications])
-      setUnreadCount(data.unreadCount)
-      emitUnreadNotificationsCount(data.unreadCount)
-      setNextOffset(data.pagination.nextOffset)
-      setHasMore(data.pagination.hasMore)
-      setError(null)
+      setNotifications((current) => [...current, ...data.notifications]);
+      setUnreadCount(data.unreadCount);
+      emitUnreadNotificationsCount(data.unreadCount);
+      setNextOffset(data.pagination.nextOffset);
+      setHasMore(data.pagination.hasMore);
+      setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Không thể tải thông báo')
+      setError(err instanceof Error ? err.message : "Không thể tải thông báo");
     } finally {
-      setLoadingMore(false)
+      setLoadingMore(false);
     }
   }
 
   async function handleMarkAsRead(notificationId: string) {
     try {
-      setUpdatingId(notificationId)
-      const updated = await markNotificationAsRead(notificationId)
-      setNotifications((current) => current.map((item) => (item.id === updated.id ? updated : item)))
+      setUpdatingId(notificationId);
+      const updated = await markNotificationAsRead(notificationId);
+      setNotifications((current) =>
+        current.map((item) => (item.id === updated.id ? updated : item)),
+      );
       setUnreadCount((count) => {
-        const nextCount = Math.max(0, count - 1)
-        emitUnreadNotificationsCount(nextCount)
-        return nextCount
-      })
+        const nextCount = Math.max(0, count - 1);
+        emitUnreadNotificationsCount(nextCount);
+        return nextCount;
+      });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Không thể cập nhật thông báo')
+      setError(
+        err instanceof Error ? err.message : "Không thể cập nhật thông báo",
+      );
     } finally {
-      setUpdatingId(null)
+      setUpdatingId(null);
     }
   }
 
   async function handleMarkAllAsRead() {
     try {
-      setMarkingAll(true)
-      await markAllNotificationsAsRead()
-      const readAt = new Date().toISOString()
-      setNotifications((current) => current.map((item) => ({ ...item, readAt: item.readAt ?? readAt })))
-      setUnreadCount(0)
-      emitUnreadNotificationsCount(0)
-      setError(null)
+      setMarkingAll(true);
+      await markAllNotificationsAsRead();
+      const readAt = new Date().toISOString();
+      setNotifications((current) =>
+        current.map((item) => ({ ...item, readAt: item.readAt ?? readAt })),
+      );
+      setUnreadCount(0);
+      emitUnreadNotificationsCount(0);
+      setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Không thể cập nhật thông báo')
+      setError(
+        err instanceof Error ? err.message : "Không thể cập nhật thông báo",
+      );
     } finally {
-      setMarkingAll(false)
+      setMarkingAll(false);
     }
   }
 
   function getNotificationDestination(notification: AppNotification) {
     if (!notification.projectId) {
-      return null
+      return null;
     }
 
-    if (notification.type === 'share_accessed') {
-      return `/projects/${notification.projectId}?section=access_logs`
+    if (notification.type === "share_accessed") {
+      return `/projects/${notification.projectId}?section=access_logs`;
     }
 
-    if (notification.type === 'payment_updated') {
-      return `/projects/${notification.projectId}?section=payment`
+    if (notification.type === "payment_updated") {
+      return `/projects/${notification.projectId}?section=payment`;
     }
 
-    return `/projects/${notification.projectId}`
+    return `/projects/${notification.projectId}`;
   }
 
   function handleOpenNotification(notification: AppNotification) {
-    const destination = getNotificationDestination(notification)
+    const destination = getNotificationDestination(notification);
     if (!destination) {
-      return
+      return;
     }
 
     if (!notification.readAt && updatingId !== notification.id) {
-      void handleMarkAsRead(notification.id)
+      void handleMarkAsRead(notification.id);
     }
 
-    router.push(destination)
+    router.push(destination);
   }
 
   return (
@@ -265,12 +296,12 @@ export default function NotificationsPage() {
               Cập nhật mới nhất về project, thanh toán và lượt xem link share.
             </p>
             {!loading ? (
-              <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+              <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground md:flex-nowrap">
                 <span className="inline-flex h-9 items-center gap-1.5 rounded-full bg-primary/8 px-3.5 text-sm font-semibold text-primary">
                   <span className="h-2 w-2 rounded-full bg-primary" />
-                  {unreadCount > 0 ? `${unreadCount} chưa đọc` : 'Đã đọc hết'}
+                  {unreadCount > 0 ? `${unreadCount} chưa đọc` : "Đã đọc hết"}
                 </span>
-                <span className="inline-flex h-9 items-center gap-1.5 rounded-full bg-secondary px-3.5 text-sm font-medium">
+                <span className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-secondary px-3.5 text-sm font-medium">
                   <Bell className="h-3.5 w-3.5" />
                   {notifications.length} thông báo
                 </span>
@@ -278,10 +309,14 @@ export default function NotificationsPage() {
                   type="button"
                   onClick={() => void handleMarkAllAsRead()}
                   disabled={markingAll || unreadCount === 0}
-                  className="inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-full border border-border bg-white px-3.5 text-sm font-medium text-foreground transition-colors hover:border-primary/20 hover:text-primary disabled:cursor-not-allowed disabled:opacity-45"
+                  className="inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-full border border-border bg-white px-3.5 text-sm font-medium text-foreground transition-colors hover:border-primary/20 hover:text-primary disabled:cursor-not-allowed disabled:opacity-45 md:ml-0.5"
                 >
-                  {markingAll ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-                  Đánh dấu tất cả đã đọc
+                  {markingAll ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <CheckCircle2 className="h-4 w-4" />
+                  )}
+                  Đọc tất cả
                 </button>
               </div>
             ) : null}
@@ -298,7 +333,9 @@ export default function NotificationsPage() {
       <section className="mt-5">
         <div className="mb-3 flex items-end justify-between gap-3">
           <div>
-            <h2 className="text-lg font-bold text-foreground md:text-xl">Mới nhất</h2>
+            <h2 className="text-lg font-bold text-foreground md:text-xl">
+              Mới nhất
+            </h2>
             <p className="mt-1 text-sm text-muted-foreground">
               Hiển thị theo thời gian giống luồng thông báo quen thuộc.
             </p>
@@ -320,9 +357,12 @@ export default function NotificationsPage() {
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-[22px] bg-secondary text-muted-foreground">
               <Bell className="h-8 w-8" />
             </div>
-            <p className="mt-4 text-base font-semibold text-foreground">Chưa có thông báo nào</p>
+            <p className="mt-4 text-base font-semibold text-foreground">
+              Chưa có thông báo nào
+            </p>
             <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-muted-foreground">
-              Khi khách mở link share, bạn tạo project hoặc trạng thái thanh toán thay đổi, mục này sẽ tự cập nhật.
+              Khi khách mở link share, bạn tạo project hoặc trạng thái thanh
+              toán thay đổi, mục này sẽ tự cập nhật.
             </p>
           </div>
         ) : (
@@ -349,8 +389,12 @@ export default function NotificationsPage() {
                     disabled={loadingMore}
                     className="inline-flex items-center gap-2 rounded-2xl border border-border bg-white px-4 py-2.5 text-sm font-semibold text-foreground shadow-sm transition-all hover:border-primary/20 hover:text-primary disabled:opacity-50"
                   >
-                    {loadingMore ? <Loader2 className="h-4 w-4 animate-spin" /> : <Clock className="h-4 w-4" />}
-                    {loadingMore ? 'Đang tải...' : 'Tải thêm thông báo'}
+                    {loadingMore ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Clock className="h-4 w-4" />
+                    )}
+                    {loadingMore ? "Đang tải..." : "Tải thêm thông báo"}
                   </button>
                 </div>
               </div>
@@ -359,7 +403,7 @@ export default function NotificationsPage() {
         )}
       </section>
     </div>
-  )
+  );
 }
 
 function NotificationRow({
@@ -369,45 +413,47 @@ function NotificationRow({
   onOpen,
   onMarkAsRead,
 }: {
-  notification: AppNotification
-  updating: boolean
-  href: string | null
-  onOpen: (notification: AppNotification) => void
-  onMarkAsRead: (notificationId: string) => Promise<void>
+  notification: AppNotification;
+  updating: boolean;
+  href: string | null;
+  onOpen: (notification: AppNotification) => void;
+  onMarkAsRead: (notificationId: string) => Promise<void>;
 }) {
-  const meta = TYPE_META[notification.type]
-  const Icon = meta.icon
-  const isUnread = !notification.readAt
+  const meta = TYPE_META[notification.type];
+  const Icon = meta.icon;
+  const isUnread = !notification.readAt;
 
   return (
     <article
-      role={href ? 'link' : undefined}
+      role={href ? "link" : undefined}
       tabIndex={href ? 0 : undefined}
       onClick={href ? () => onOpen(notification) : undefined}
-      onKeyDown={href ? (event) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault()
-          onOpen(notification)
-        }
-      } : undefined}
+      onKeyDown={
+        href
+          ? (event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                onOpen(notification);
+              }
+            }
+          : undefined
+      }
       className={cn(
-        'relative flex gap-3 px-3.5 py-3 transition-colors md:px-4 md:py-3.5',
-        isUnread
-          ? 'bg-primary/[0.055]'
-          : 'bg-white hover:bg-slate-50/80',
-        href ? 'cursor-pointer' : '',
+        "relative flex gap-3 px-3.5 py-3 transition-colors md:px-4 md:py-3.5",
+        isUnread ? "bg-primary/[0.055]" : "bg-white hover:bg-slate-50/80",
+        href ? "cursor-pointer" : "",
       )}
     >
       <div
         className={cn(
-          'absolute inset-y-3 left-0 w-1 rounded-r-full',
-          isUnread ? 'hero-gradient' : 'bg-transparent',
+          "absolute inset-y-3 left-0 w-1 rounded-r-full",
+          isUnread ? "hero-gradient" : "bg-transparent",
         )}
       />
 
       <div
         className={cn(
-          'mt-0.5 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border shadow-sm',
+          "mt-0.5 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border shadow-sm",
           meta.iconClassName,
         )}
       >
@@ -418,22 +464,35 @@ function NotificationRow({
         <div className="flex items-start gap-3">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <span className={cn('inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-semibold', meta.badgeClassName)}>
+              <span
+                className={cn(
+                  "inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-semibold",
+                  meta.badgeClassName,
+                )}
+              >
                 {meta.label}
               </span>
-              {isUnread ? <span className="h-2 w-2 rounded-full bg-primary" /> : null}
+              {isUnread ? (
+                <span className="h-2 w-2 rounded-full bg-primary" />
+              ) : null}
             </div>
 
             <p className="mt-1.5 text-sm leading-6 text-foreground md:text-[15px]">
-              <span className="font-bold">{notification.title}</span>{' '}
-              <span className="text-muted-foreground">{notification.message}</span>
+              <span className="font-bold">{notification.title}</span>{" "}
+              <span className="text-muted-foreground">
+                {notification.message}
+              </span>
             </p>
 
             <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-muted-foreground">
-              <span className={cn('font-medium', isUnread ? 'text-primary' : '')}>
+              <span
+                className={cn("font-medium", isUnread ? "text-primary" : "")}
+              >
                 {formatDate(notification.createdAt)}
               </span>
-              {notification.projectName ? <span>• {notification.projectName}</span> : null}
+              {notification.projectName ? (
+                <span>• {notification.projectName}</span>
+              ) : null}
             </div>
           </div>
 
@@ -441,18 +500,22 @@ function NotificationRow({
             <button
               type="button"
               onClick={(event) => {
-                event.stopPropagation()
-                void onMarkAsRead(notification.id)
+                event.stopPropagation();
+                void onMarkAsRead(notification.id);
               }}
               disabled={updating}
               className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-primary transition-all hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-50"
-              aria-label="Đánh dấu đã đọc"
+              aria-label="Đọc tất cả"
             >
-              {updating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+              {updating ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Check className="h-4 w-4" />
+              )}
             </button>
           ) : null}
         </div>
       </div>
     </article>
-  )
+  );
 }
