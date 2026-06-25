@@ -57,7 +57,9 @@ export type ListProjectsResponse = {
   }
 }
 
-export async function listProjects(params: ListProjectsParams = {}) {
+export type ProjectApiScope = 'user' | 'admin'
+
+export async function listProjects(params: ListProjectsParams = {}, scope: ProjectApiScope = 'user') {
   const searchParams = new URLSearchParams()
 
   if (params.q?.trim()) {
@@ -85,11 +87,12 @@ export async function listProjects(params: ListProjectsParams = {}) {
   }
 
   const query = searchParams.toString()
-  return request<ListProjectsResponse>(query ? `/projects?${query}` : '/projects')
+  const path = getProjectsBasePath(scope)
+  return request<ListProjectsResponse>(query ? `${path}?${query}` : path)
 }
 
-export async function getProject(projectId: string) {
-  const data = await request<{ project: Project }>(`/projects/${projectId}`)
+export async function getProject(projectId: string, scope: ProjectApiScope = 'user') {
+  const data = await request<{ project: Project }>(`${getProjectsBasePath(scope)}/${projectId}`)
   return data.project
 }
 
@@ -102,8 +105,8 @@ export async function createProject(payload: CreateProjectInput) {
   return data.project
 }
 
-export async function updateProject(projectId: string, payload: UpdateProjectInput) {
-  const data = await request<{ project: Project }>(`/projects/${projectId}`, {
+export async function updateProject(projectId: string, payload: UpdateProjectInput, scope: ProjectApiScope = 'user') {
+  const data = await request<{ project: Project }>(`${getProjectsBasePath(scope)}/${projectId}`, {
     method: 'PATCH',
     body: JSON.stringify(payload),
   })
@@ -115,8 +118,9 @@ export async function updateProjectStatus(
   projectId: string,
   status: ProjectStatus,
   paidAmount?: number | null,
+  scope: ProjectApiScope = 'user',
 ) {
-  const data = await request<{ project: Project }>(`/projects/${projectId}/status`, {
+  const data = await request<{ project: Project }>(`${getProjectsBasePath(scope)}/${projectId}/status`, {
     method: 'PATCH',
     body: JSON.stringify({ status, paidAmount }),
   })
@@ -124,8 +128,8 @@ export async function updateProjectStatus(
   return data.project
 }
 
-export async function deleteProject(projectId: string) {
-  await request(`/projects/${projectId}`, {
+export async function deleteProject(projectId: string, scope: ProjectApiScope = 'user') {
+  await request(`${getProjectsBasePath(scope)}/${projectId}`, {
     method: 'DELETE',
   })
 }
@@ -133,15 +137,16 @@ export async function deleteProject(projectId: string) {
 export async function createProjectPhotoUploadUrl(
   projectId: string,
   payload: { fileName: string; contentType: string; fileSize: number },
+  scope: ProjectApiScope = 'user',
 ) {
-  return request<PhotoUploadPresign>(`/projects/${projectId}/photos/presign-put`, {
+  return request<PhotoUploadPresign>(`${getProjectsBasePath(scope)}/${projectId}/photos/presign-put`, {
     method: 'POST',
     body: JSON.stringify(payload),
   })
 }
 
-export async function addProjectPhoto(projectId: string, payload: AddProjectPhotoInput) {
-  const data = await request<{ project: Project }>(`/projects/${projectId}/photos`, {
+export async function addProjectPhoto(projectId: string, payload: AddProjectPhotoInput, scope: ProjectApiScope = 'user') {
+  const data = await request<{ project: Project }>(`${getProjectsBasePath(scope)}/${projectId}/photos`, {
     method: 'POST',
     body: JSON.stringify(payload),
   })
@@ -149,8 +154,8 @@ export async function addProjectPhoto(projectId: string, payload: AddProjectPhot
   return data.project
 }
 
-export async function deleteProjectPhoto(projectId: string, photoId: string) {
-  const data = await request<{ project: Project }>(`/projects/${projectId}/photos/${photoId}`, {
+export async function deleteProjectPhoto(projectId: string, photoId: string, scope: ProjectApiScope = 'user') {
+  const data = await request<{ project: Project }>(`${getProjectsBasePath(scope)}/${projectId}/photos/${photoId}`, {
     method: 'DELETE',
   })
 
@@ -189,6 +194,10 @@ export async function uploadFileToPresignedUrl(
     xhr.onerror = () => reject(new Error('Upload failed due to network error'))
     xhr.send(file)
   })
+}
+
+function getProjectsBasePath(scope: ProjectApiScope) {
+  return scope === 'admin' ? '/projects/admin' : '/projects'
 }
 
 async function request<T>(path: string, init: RequestInit = {}) {

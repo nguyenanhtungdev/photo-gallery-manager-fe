@@ -22,6 +22,7 @@ import {
   createProjectPhotoUploadUrl,
   deleteProjectPhoto,
   getProject,
+  type ProjectApiScope,
   updateProject,
   updateProjectStatus,
   type UpdateProjectInput,
@@ -539,6 +540,7 @@ export default function ProjectDetailPage({
   const projectBasePath = pathname.startsWith("/admin")
     ? "/admin/projects"
     : "/projects";
+  const apiScope: ProjectApiScope = pathname.startsWith("/admin") ? "admin" : "user";
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -587,7 +589,7 @@ export default function ProjectDetailPage({
 
     async function loadProject() {
       try {
-        const data = await getProject(id);
+        const data = await getProject(id, apiScope);
         if (!active) {
           return;
         }
@@ -613,7 +615,7 @@ export default function ProjectDetailPage({
     return () => {
       active = false;
     };
-  }, [id]);
+  }, [apiScope, id]);
 
   useEffect(() => {
     const node = loadMorePhotosRef.current;
@@ -735,6 +737,7 @@ export default function ProjectDetailPage({
         project.id,
         "paid",
         paidAmount,
+        apiScope,
       );
       setProject(updatedProject);
       setPaymentInput(
@@ -761,7 +764,7 @@ export default function ProjectDetailPage({
 
     try {
       setSavingInfo(true);
-      const updatedProject = await updateProject(project.id, payload);
+      const updatedProject = await updateProject(project.id, payload, apiScope);
       setProject(updatedProject);
       setPaymentInput(
         updatedProject.paidAmount != null
@@ -791,6 +794,7 @@ export default function ProjectDetailPage({
         project.id,
         "paid",
         paidAmount,
+        apiScope,
       );
       setProject(updatedProject);
       setPaymentInput(
@@ -860,7 +864,7 @@ export default function ProjectDetailPage({
               fileName: file.name,
               contentType,
               fileSize: file.size,
-            }),
+            }, apiScope),
             readImageDimensions(file),
           ]);
 
@@ -907,7 +911,7 @@ export default function ProjectDetailPage({
           fileSize: preparedUpload.file.size,
           width: preparedUpload.dimensions.width,
           height: preparedUpload.dimensions.height,
-        });
+        }, apiScope);
 
         setProject(currentProject);
       }
@@ -935,7 +939,7 @@ export default function ProjectDetailPage({
 
     try {
       setRemovingPhotoId(photoId);
-      const updatedProject = await deleteProjectPhoto(project.id, photoId);
+      const updatedProject = await deleteProjectPhoto(project.id, photoId, apiScope);
       setProject(updatedProject);
       setError(null);
       // If lightbox is open and viewing the deleted photo, close or navigate

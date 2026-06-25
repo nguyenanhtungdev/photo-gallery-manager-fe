@@ -17,6 +17,7 @@ import {
   createProject,
   deleteProject,
   listProjects,
+  type ProjectApiScope,
   type CreateProjectInput,
   updateProjectStatus,
 } from '@/lib/projects-api'
@@ -863,6 +864,7 @@ function PaidAmountModal({
 export default function ProjectsPage() {
   const pathname = usePathname()
   const projectBasePath = pathname.startsWith('/admin') ? '/admin/projects' : '/projects'
+  const apiScope: ProjectApiScope = pathname.startsWith('/admin') ? 'admin' : 'user'
   const defaultWeekRange = getCurrentWeekRange()
   const [projects, setProjects] = useState<Project[]>([])
   const [searchInput, setSearchInput] = useState('')
@@ -913,7 +915,7 @@ export default function ProjectsPage() {
         limit: PAGE_SIZE,
         dateFrom: dateRange?.dateFrom,
         dateTo: dateRange?.dateTo,
-      })
+      }, apiScope)
 
       if (requestId !== requestIdRef.current) {
         return
@@ -947,7 +949,7 @@ export default function ProjectsPage() {
         }
       }
     }
-  }, [dateFromInput, dateToInput, searchQuery, statusFilter])
+  }, [apiScope, dateFromInput, dateToInput, searchQuery, statusFilter])
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -1012,7 +1014,7 @@ export default function ProjectsPage() {
 
     try {
       setBusyProjectId(paymentDialogProject.id)
-      await updateProjectStatus(paymentDialogProject.id, 'paid', paidAmount)
+      await updateProjectStatus(paymentDialogProject.id, 'paid', paidAmount, apiScope)
       await loadProjects({ reset: true })
       setError(null)
     } catch (err) {
@@ -1036,7 +1038,7 @@ export default function ProjectsPage() {
 
     try {
       setBusyProjectId(projectId)
-      await deleteProject(projectId)
+      await deleteProject(projectId, apiScope)
       await loadProjects({ reset: true })
       setError(null)
     } catch (err) {
@@ -1177,7 +1179,7 @@ export default function ProjectsPage() {
           </div>
         )}
 
-        {!loading && projects.map((project) => {
+        {!loading && projects.map((project, idx) => {
           const isBusy = busyProjectId === project.id
           const isPaid = project.status === 'paid'
 
@@ -1187,7 +1189,8 @@ export default function ProjectsPage() {
               <Link
                 key={project.id}
                 href={`${projectBasePath}/${project.id}`}
-                className="group flex cursor-pointer items-stretch overflow-hidden rounded-2xl border border-border bg-white shadow-sm transition-all hover:border-primary/25 hover:shadow-md"
+                className="group animate-fade-in-up flex cursor-pointer items-stretch overflow-hidden rounded-2xl border border-border bg-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-md"
+                style={{ animationDelay: `${idx * 40}ms` }}
               >
                 {/* Left accent bar */}
                 <div
@@ -1201,10 +1204,10 @@ export default function ProjectsPage() {
 
                 {/* Icon */}
                 <div className="flex flex-shrink-0 items-center px-3.5">
-                  <div className={`flex h-9 w-9 items-center justify-center rounded-xl ${
+                  <div className={`flex h-9 w-9 items-center justify-center rounded-xl transition-transform duration-300 group-hover:scale-105 ${
                     isPaid ? 'bg-emerald-50' : 'bg-amber-50'
                   }`}>
-                    <FolderOpen className={`h-4.5 w-4.5 ${isPaid ? 'text-emerald-600' : 'text-amber-500'}`} />
+                    <FolderOpen className={`h-4.5 w-4.5 transition-colors ${isPaid ? 'text-emerald-600' : 'text-amber-500'}`} />
                   </div>
                 </div>
 
@@ -1235,27 +1238,36 @@ export default function ProjectsPage() {
                   </div>
 
                   {/* Row 2: metadata + copy link */}
-                  <div className="mt-1 flex items-center justify-between gap-2">
-                    <div className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
+                  <div className="mt-1.5 flex items-center justify-between gap-2">
+                    <div className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+                      {project.clientName && (
+                        <span className="font-semibold text-slate-700 dark:text-slate-300 truncate max-w-[120px]">{project.clientName}</span>
+                      )}
+                      {project.clientName && <span className="text-slate-300">•</span>}
                       {project.clientPhone && (
                         <span className="flex-shrink-0">{maskPhone(project.clientPhone)}</span>
                       )}
+                      {project.clientPhone && <span className="text-slate-300">•</span>}
                       <span className="flex flex-shrink-0 items-center gap-0.5">
-                        <ImageIcon className="h-3 w-3" />
+                        <ImageIcon className="h-3.5 w-3.5 text-slate-400" />
                         {project.photos.length} ảnh
                       </span>
+                      <span className="text-slate-300">•</span>
                       <span className="truncate">{formatDate(project.createdAt)}</span>
                       {project.paidAmount != null && (
-                        <span className="flex-shrink-0 font-medium text-emerald-600">
-                          {formatCurrency(project.paidAmount)}
-                        </span>
+                        <>
+                          <span className="text-slate-300">•</span>
+                          <span className="flex-shrink-0 font-semibold text-emerald-600">
+                            {formatCurrency(project.paidAmount)}
+                          </span>
+                        </>
                       )}
                     </div>
                     <button
                       type="button"
                       onClick={(e) => { e.preventDefault(); handleCopyShareLink(project) }}
                       disabled={isBusy}
-                      className="flex-shrink-0 rounded-full border border-border bg-white px-2.5 py-0.5 text-[10px] font-semibold text-muted-foreground transition-all hover:border-primary/40 hover:text-primary disabled:opacity-50"
+                      className="flex-shrink-0 rounded-full border border-border bg-white px-2.5 py-0.5 text-[10px] font-semibold text-muted-foreground transition-all hover:border-primary/40 hover:bg-primary/5 hover:text-primary active:scale-95 disabled:opacity-50"
                     >
                       {copiedProjectId === project.id ? '✓ Đã copy' : 'Copy link'}
                     </button>
@@ -1272,54 +1284,87 @@ export default function ProjectsPage() {
             <Link
               key={project.id}
               href={`${projectBasePath}/${project.id}`}
-              className="group block cursor-pointer rounded-2xl border border-border bg-white shadow-sm transition-all hover:border-primary/25 hover:shadow-md overflow-hidden"
+              className="group animate-fade-in-up flex flex-col justify-between cursor-pointer rounded-2xl border border-border bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-primary/25 hover:shadow-lg overflow-hidden"
+              style={{ animationDelay: `${idx * 40}ms` }}
             >
               {/* Top area with gradient bg */}
-              <div
-                className="flex items-center justify-between px-3 pt-3 pb-2.5"
-                style={{
-                  background: isPaid
-                    ? 'linear-gradient(135deg, hsl(160,84%,97%), hsl(145,63%,94%))'
-                    : 'linear-gradient(135deg, hsl(38,92%,97%), hsl(43,96%,93%))',
-                }}
-              >
-                <div className={`flex h-9 w-9 items-center justify-center rounded-xl ${
-                  isPaid ? 'bg-emerald-100' : 'bg-amber-100'
-                }`}>
-                  <FolderOpen className={`h-4.5 w-4.5 ${isPaid ? 'text-emerald-600' : 'text-amber-500'}`} />
+              <div>
+                <div
+                  className="flex items-center justify-between px-3.5 pt-3.5 pb-2.5 border-b border-slate-100/50"
+                  style={{
+                    background: isPaid
+                      ? 'linear-gradient(135deg, hsl(160,84%,98%), hsl(145,63%,96%))'
+                      : 'linear-gradient(135deg, hsl(38,92%,98%), hsl(43,96%,95%))',
+                  }}
+                >
+                  <div className={`flex h-9 w-9 items-center justify-center rounded-xl transition-transform duration-300 group-hover:scale-105 ${
+                    isPaid ? 'bg-emerald-50' : 'bg-amber-50'
+                  }`}>
+                    <FolderOpen className={`h-4.5 w-4.5 ${isPaid ? 'text-emerald-600' : 'text-amber-500'}`} />
+                  </div>
+                  <div onClick={(e) => e.preventDefault()}>
+                    <ActionMenu
+                      shareToken={project.shareToken}
+                      status={project.status}
+                      disabled={isBusy}
+                      onToggleStatus={() => handleToggleStatus(project.id)}
+                      onDelete={() => handleDelete(project.id)}
+                    />
+                  </div>
                 </div>
-                <div onClick={(e) => e.preventDefault()}>
-                  <ActionMenu
-                    shareToken={project.shareToken}
-                    status={project.status}
-                    disabled={isBusy}
-                    onToggleStatus={() => handleToggleStatus(project.id)}
-                    onDelete={() => handleDelete(project.id)}
-                  />
+
+                {/* Body */}
+                <div className="px-3.5 pt-3 pb-2">
+                  <p className="truncate text-sm font-semibold leading-snug transition-colors group-hover:text-primary">
+                    {project.name}
+                  </p>
+                  <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground min-w-0 gap-1.5">
+                    <span className="truncate font-semibold text-slate-700 dark:text-slate-300">
+                      {project.clientName || 'Khách vãng lai'}
+                    </span>
+                    {project.clientPhone && (
+                      <span className="flex-shrink-0 text-[11px] opacity-85">
+                        {maskPhone(project.clientPhone)}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Sub-meta: Date & Price */}
+                  <div className="mt-2.5 flex items-center justify-between gap-1 border-t border-slate-50 pt-2 text-[10px] text-muted-foreground">
+                    <span>{formatDate(project.createdAt)}</span>
+                    {project.paidAmount != null ? (
+                      <span className="font-semibold text-emerald-600">
+                        {formatCurrency(project.paidAmount)}
+                      </span>
+                    ) : (
+                      <span className="text-amber-600 font-semibold">Chờ thanh toán</span>
+                    )}
+                  </div>
                 </div>
               </div>
 
-              {/* Body */}
-              <div className="px-3 pb-3 pt-2">
-                <p className="truncate text-sm font-semibold leading-snug transition-colors group-hover:text-primary">
-                  {project.name}
-                </p>
-                <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                  {project.clientName}
-                  {maskPhone(project.clientPhone) ? ` • ${maskPhone(project.clientPhone)}` : ''}
-                </p>
-
-                {/* Footer */}
-                <div className="mt-2.5 flex items-center justify-between gap-1">
-                  <StatusBadge
-                    status={project.status}
-                    disabled={isBusy}
-                    onClick={(e) => { e.preventDefault(); void handleToggleStatus(project.id) }}
-                  />
-                  <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <ImageIcon className="h-3 w-3" />
+              {/* Footer */}
+              <div className="px-3.5 pb-3.5 pt-2 border-t border-slate-100/60 flex items-center justify-between gap-2 mt-auto">
+                <StatusBadge
+                  status={project.status}
+                  disabled={isBusy}
+                  onClick={(e) => { e.preventDefault(); void handleToggleStatus(project.id) }}
+                />
+                
+                <div className="flex items-center gap-1.5">
+                  <span className="flex items-center gap-0.5 text-[11px] text-muted-foreground font-medium bg-slate-50 px-2 py-0.5 rounded-lg border border-slate-100">
+                    <ImageIcon className="h-3 w-3 text-slate-400" />
                     {project.photos.length}
                   </span>
+
+                  <button
+                    type="button"
+                    onClick={(e) => { e.preventDefault(); handleCopyShareLink(project) }}
+                    disabled={isBusy}
+                    className="rounded-lg border border-border bg-white px-2 py-1 text-[10px] font-bold text-muted-foreground transition-all hover:border-primary/40 hover:bg-primary/5 hover:text-primary active:scale-95 disabled:opacity-50"
+                  >
+                    {copiedProjectId === project.id ? '✓ Coppy' : 'Copy'}
+                  </button>
                 </div>
               </div>
             </Link>
