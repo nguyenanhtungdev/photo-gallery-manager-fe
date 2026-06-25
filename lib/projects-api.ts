@@ -1,6 +1,5 @@
 import type { Project, ProjectStatus } from '@/lib/mock-data'
 import { apiFetch } from '@/lib/auth'
-import type { ImageResizeSetting } from '@/lib/image-resize'
 
 export type CreateProjectInput = {
   name: string
@@ -14,7 +13,6 @@ export type UpdateProjectInput = {
   clientName: string
   clientPhone?: string | null
   notes?: string
-  imageResizeWidth?: ImageResizeSetting
 }
 
 export type PhotoUploadPresign = {

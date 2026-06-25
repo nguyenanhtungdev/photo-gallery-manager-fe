@@ -420,7 +420,7 @@ export function ProfilePage({
             <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold">Độ phân giải ảnh share mặc định</p>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                Khách chưa thanh toán sẽ thấy ảnh preview {formatResizeSetting(imageResizeWidth)}, trừ project có cấu hình riêng. Ảnh gốc vẫn được giữ nguyên.
+                Khách chưa thanh toán sẽ thấy ảnh preview {formatResizeSetting(imageResizeWidth)}. Ảnh gốc vẫn được giữ nguyên.
               </p>
             </div>
           </div>

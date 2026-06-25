@@ -394,14 +394,16 @@ function StatusBadge({
   disabled: boolean
   onClick: (event: MouseEvent) => void
 }) {
-  const base = 'inline-flex shrink-0 cursor-pointer select-none items-center gap-1 whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px] font-semibold transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-50'
+  const interactive = status !== 'paid' && !disabled
+  const base = `inline-flex shrink-0 select-none items-center gap-1 whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px] font-semibold transition-all ${
+    interactive ? 'cursor-pointer active:scale-95' : 'cursor-default'
+  } ${disabled ? 'opacity-50' : ''}`
 
   if (status === 'paid') {
     return (
       <span
-        onClick={disabled ? undefined : onClick}
-        title="Nhấn để chuyển về chưa thanh toán"
-        className={`${base} border-green-200 bg-green-50 text-green-700 hover:bg-green-100`}
+        title="Project đã thanh toán"
+        className={`${base} border-green-200 bg-green-50 text-green-700`}
       >
         <CheckCircle2 className="h-2.5 w-2.5" /> Đã thanh toán
       </span>
@@ -821,21 +823,11 @@ export default function ProjectsPage() {
       return
     }
 
-    if (current.status !== 'paid') {
-      setPaymentDialogProject(current)
+    if (current.status === 'paid') {
       return
     }
 
-    try {
-      setBusyProjectId(projectId)
-      await updateProjectStatus(projectId, 'waiting_payment', null)
-      await loadProjects({ reset: true })
-      setError(null)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Không thể cập nhật trạng thái project')
-    } finally {
-      setBusyProjectId(null)
-    }
+    setPaymentDialogProject(current)
   }
 
   async function handleConfirmPaidStatus(paidAmount: number | null) {

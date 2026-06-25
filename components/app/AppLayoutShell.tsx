@@ -24,12 +24,14 @@ export function AppLayoutShell({
   pageMeta,
   logoutPath,
   portalLabel = 'Portal',
+  notificationBadgeCount = 0,
 }: {
   children: React.ReactNode
   navItems: NavItem[]
   pageMeta: Record<string, PageMeta>
   logoutPath: string
   portalLabel?: string
+  notificationBadgeCount?: number
 }) {
   const pathname = usePathname()
   const router = useRouter()
@@ -41,6 +43,8 @@ export function AppLayoutShell({
     clearSession()
     router.replace(logoutPath)
   }
+
+  const displayUnreadCount = notificationBadgeCount > 99 ? '99+' : notificationBadgeCount
 
   return (
     <div className="flex h-svh overflow-hidden bg-[hsl(210,40%,98%)]">
@@ -58,6 +62,7 @@ export function AppLayoutShell({
         <nav className="flex-1 space-y-1 px-3 py-4">
           {navItems.map(({ href, icon: Icon, label }) => {
             const active = pathname.startsWith(href)
+            const showUnreadBadge = href === '/notifications' && notificationBadgeCount > 0
             return (
               <Link
                 key={href}
@@ -67,8 +72,15 @@ export function AppLayoutShell({
                   active ? 'bg-primary text-white shadow-sm' : 'text-muted-foreground hover:bg-secondary hover:text-foreground',
                 )}
               >
-                <Icon className="h-4 w-4 flex-shrink-0" />
-                {label}
+                <div className="relative flex h-4 w-4 flex-shrink-0 items-center justify-center">
+                  <Icon className="h-4 w-4" />
+                  {showUnreadBadge ? (
+                    <span className="absolute -right-3 -top-2 inline-flex min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-5 text-white shadow-sm shadow-red-500/30">
+                      {displayUnreadCount}
+                    </span>
+                  ) : null}
+                </div>
+                <span>{label}</span>
               </Link>
             )
           })}
@@ -123,6 +135,7 @@ export function AppLayoutShell({
         <div className="flex px-2">
           {navItems.map(({ href, icon: Icon, label }) => {
             const active = pathname.startsWith(href)
+            const showUnreadBadge = href === '/notifications' && notificationBadgeCount > 0
             return (
               <Link
                 key={href}
@@ -134,11 +147,16 @@ export function AppLayoutShell({
               >
                 <div
                   className={cn(
-                    'flex h-7 w-11 items-center justify-center rounded-2xl transition-all duration-200',
+                    'relative flex h-7 w-11 items-center justify-center rounded-2xl transition-all duration-200',
                     active ? 'scale-105 bg-primary shadow-sm shadow-primary/40' : 'hover:bg-secondary/80',
                   )}
                 >
                   <Icon className={cn('h-4.5 w-4.5 transition-colors', active ? 'text-white' : '')} />
+                  {showUnreadBadge ? (
+                    <span className="absolute -right-1 -top-1 inline-flex min-w-5 items-center justify-center rounded-full border-2 border-white bg-red-500 px-1 text-[10px] font-bold leading-4.5 text-white shadow-sm shadow-red-500/30">
+                      {displayUnreadCount}
+                    </span>
+                  ) : null}
                 </div>
                 <span className={active ? 'text-primary' : ''}>{label}</span>
               </Link>

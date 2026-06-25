@@ -10,13 +10,17 @@ import {
   CheckCircle2,
   Eye,
   EyeOff,
+  FolderOpen,
+  HardDrive,
   ImageIcon,
+  Images,
   Layers,
   Lock,
   Mail,
   RotateCcw,
   ShieldCheck,
   User,
+  Users,
   X,
 } from "lucide-react";
 import {
@@ -338,6 +342,19 @@ export function LoginPage({
 
   return (
     <>
+      <style>{`
+        @keyframes lp-float1 { 0%,100%{transform:translateY(0) scale(1)} 50%{transform:translateY(-28px) scale(1.06)} }
+        @keyframes lp-float2 { 0%,100%{transform:translateX(0) scale(1)} 50%{transform:translateX(22px) scale(0.94)} }
+        @keyframes lp-float3 { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(-14px,18px) scale(1.08)} }
+        @keyframes lp-particle { 0%,100%{transform:translateY(0) scale(1);opacity:.55} 40%{transform:translateY(-22px) scale(1.3);opacity:.9} 70%{transform:translateY(-8px) scale(0.7);opacity:.35} }
+        @keyframes lp-fadeup { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes lp-shimmer { 0%{transform:translateX(-160%) skewX(-15deg)} 100%{transform:translateX(260%) skewX(-15deg)} }
+        .lp-blob1{animation:lp-float1 8s ease-in-out infinite}
+        .lp-blob2{animation:lp-float2 11s ease-in-out infinite}
+        .lp-blob3{animation:lp-float3 13s ease-in-out infinite 2s}
+        .lp-particle{animation:lp-particle var(--dur,6s) ease-in-out infinite var(--delay,0s)}
+        .lp-shimmer{position:absolute;inset:0;background:linear-gradient(105deg,transparent 35%,rgba(255,255,255,0.13) 50%,transparent 65%);animation:lp-shimmer 3.5s ease-in-out infinite;pointer-events:none;border-radius:inherit}
+      `}</style>
       {toast && (
         <Toast
           type={toast.type}
@@ -348,8 +365,20 @@ export function LoginPage({
       <div className="flex flex-col min-h-screen lg:flex-row">
         <div className="relative hidden overflow-hidden bg-gradient-to-br from-violet-600 via-indigo-600 to-blue-500 p-12 lg:flex lg:w-[48%] xl:w-[50%] lg:flex-col lg:justify-between">
           <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            <div className="absolute rounded-full -top-24 -left-16 h-96 w-96 bg-white/10 blur-3xl" />
-            <div className="absolute rounded-full -bottom-20 -right-12 h-80 w-80 bg-blue-300/20 blur-2xl" />
+            <div className="absolute rounded-full -top-24 -left-16 h-96 w-96 bg-white/10 blur-3xl lp-blob1" />
+            <div className="absolute rounded-full -bottom-20 -right-12 h-80 w-80 bg-blue-300/20 blur-2xl lp-blob2" />
+            <div className="absolute rounded-full top-1/2 left-1/2 h-56 w-56 bg-violet-400/15 blur-2xl lp-blob3" />
+            {([
+              { top:'18%', left:'10%', w:8,  h:8,  delay:'0s',   dur:'5s'  },
+              { top:'62%', left:'70%', w:6,  h:6,  delay:'1.6s', dur:'7s'  },
+              { top:'40%', left:'88%', w:10, h:10, delay:'2.8s', dur:'6s'  },
+              { top:'80%', left:'22%', w:5,  h:5,  delay:'0.9s', dur:'8.5s'},
+              { top:'28%', left:'50%', w:4,  h:4,  delay:'3.4s', dur:'5.5s'},
+              { top:'72%', left:'45%', w:7,  h:7,  delay:'1.2s', dur:'9s'  },
+            ] as {top:string;left:string;w:number;h:number;delay:string;dur:string}[]).map((p,i)=>(
+              <div key={i} className="absolute rounded-full bg-white/50 lp-particle"
+                style={{top:p.top,left:p.left,width:p.w,height:p.h,'--delay':p.delay,'--dur':p.dur} as React.CSSProperties} />
+            ))}
           </div>
           <div
             className="absolute inset-0 opacity-[0.07]"
@@ -360,7 +389,7 @@ export function LoginPage({
             }}
           />
 
-          <div className="relative z-10 flex items-center gap-3">
+          <div className="relative z-10 flex items-center gap-3" style={{animation:'lp-fadeup 0.6s ease-out 0.05s both'}}>
             <div className="flex items-center justify-center border shadow-lg h-11 w-11 rounded-2xl border-white/30 bg-white/20">
               <Camera className="w-6 h-6 text-white" />
             </div>
@@ -371,40 +400,61 @@ export function LoginPage({
 
           <div className="relative z-10 my-auto space-y-7">
             <div className="space-y-4">
-              <div className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/20 px-3.5 py-1.5 text-xs font-semibold uppercase tracking-wide text-white">
+              <div style={{animation:'lp-fadeup 0.5s ease-out 0.2s both'}} className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/20 px-3.5 py-1.5 text-xs font-semibold uppercase tracking-wide text-white">
                 <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-yellow-300" />
                 {leftBadge}
               </div>
-              <h1 className="text-4xl font-extrabold leading-[1.1] tracking-tight text-white drop-shadow xl:text-5xl">
+              <h1 style={{animation:'lp-fadeup 0.6s ease-out 0.35s both'}} className="text-4xl font-extrabold leading-[1.1] tracking-tight text-white drop-shadow xl:text-5xl">
                 {leftTitle}
                 <br />
                 <span className="text-yellow-200">{leftHighlight}</span>
               </h1>
-              <p className="max-w-xs text-base leading-relaxed text-white/75">
+              <p style={{animation:'lp-fadeup 0.5s ease-out 0.5s both'}} className="max-w-xs text-base leading-relaxed text-white/75">
                 {leftDescription}
               </p>
             </div>
 
             <div className="flex flex-col gap-3">
-              <FeaturePill icon={ImageIcon} label="Thư viện ảnh thông minh" />
-              <FeaturePill icon={Layers} label="Quản lý album & danh mục" />
-              <FeaturePill icon={ShieldCheck} label="Bảo mật & phân quyền" />
+              {([
+                { icon: ImageIcon,   label: 'Thư viện ảnh thông minh', delay: '0.65s' },
+                { icon: Layers,      label: 'Quản lý album & danh mục', delay: '0.78s' },
+                { icon: ShieldCheck, label: 'Bảo mật & phân quyền',     delay: '0.91s' },
+              ] as {icon:React.ElementType;label:string;delay:string}[]).map(({icon,label,delay})=>(
+                <div key={label} style={{animation:`lp-fadeup 0.5s ease-out ${delay} both`}}>
+                  <FeaturePill icon={icon} label={label} />
+                </div>
+              ))}
             </div>
           </div>
 
-          <div className="relative z-10 grid grid-cols-3 gap-2.5">
-            {[
-              "from-white/30 to-white/10",
-              "from-yellow-200/50 to-amber-300/30",
-              "from-pink-200/40 to-rose-300/20",
-              "from-sky-200/40 to-blue-300/20",
-              "from-white/20 to-white/5",
-              "from-purple-200/40 to-violet-300/20",
-            ].map((grad, index) => (
+          <div className="relative z-10 grid grid-cols-3 gap-2">
+            {(
+              [
+                { bg: "rgba(251,191,36,0.22)",   iconBg: "rgba(251,191,36,0.45)",   value: "348",    label: "PROJECTS",    Icon: FolderOpen   },
+                { bg: "rgba(255,255,255,0.12)",  iconBg: "rgba(255,255,255,0.28)",  value: "12,480", label: "ẢNH",         Icon: Images      },
+                { bg: "rgba(251,113,133,0.22)",  iconBg: "rgba(251,113,133,0.45)",  value: "96",     label: "KHÁCH HÀNG",  Icon: Users        },
+                { bg: "rgba(56,189,248,0.22)",   iconBg: "rgba(56,189,248,0.45)",   value: "2.4 TB", label: "LƯU TRỮ",     Icon: HardDrive    },
+                { bg: "rgba(52,211,153,0.22)",   iconBg: "rgba(52,211,153,0.45)",   value: "520",    label: "ALBUMS",      Icon: Layers       },
+                { bg: "rgba(167,139,250,0.22)",  iconBg: "rgba(167,139,250,0.45)",  value: "24",     label: "USERS",       Icon: ShieldCheck  },
+              ] as { bg: string; iconBg: string; value: string; label: string; Icon: React.ElementType }[]
+            ).map(({ bg, iconBg, value, label, Icon }, index) => (
               <div
                 key={index}
-                className={`h-16 rounded-xl border border-white/20 bg-gradient-to-br ${grad} transition-all duration-300 hover:scale-[1.03] hover:border-white/40`}
-              />
+                style={{ background: bg, border: '1px solid rgba(255,255,255,0.18)', animation: `lp-fadeup 0.5s ease-out ${1.05 + index * 0.1}s both` }}
+                className="group relative h-[5rem] rounded-2xl flex flex-col justify-between p-3 overflow-hidden transition-all duration-300 hover:scale-[1.05] hover:shadow-xl cursor-default"
+              >
+                <div className="lp-shimmer" />
+                <div
+                  style={{ background: iconBg }}
+                  className="w-7 h-7 rounded-xl flex items-center justify-center self-end transition-transform duration-300 group-hover:scale-110 relative z-10"
+                >
+                  <Icon className="w-3.5 h-3.5 text-white" />
+                </div>
+                <div className="relative z-10">
+                  <p className="text-[15px] font-black text-white leading-none tracking-tight">{value}</p>
+                  <p className="text-[8px] font-bold text-white/50 mt-1 leading-none tracking-widest">{label}</p>
+                </div>
+              </div>
             ))}
           </div>
         </div>

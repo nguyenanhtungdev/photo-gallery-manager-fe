@@ -2,9 +2,10 @@
 
 import { useState, useCallback, useEffect } from 'react'
 import Image from 'next/image'
-import { X, ChevronLeft, ChevronRight, Download } from 'lucide-react'
+import { X, ChevronLeft, ChevronRight, Download, Loader2 } from 'lucide-react'
 import WatermarkCanvas from './WatermarkCanvas'
 import { Photo } from '@/lib/mock-data'
+import { downloadPhotos } from '@/lib/gallery-download'
 
 interface PhotoViewerProps {
   photos: Photo[]
@@ -19,6 +20,8 @@ export default function PhotoViewer({
 }: PhotoViewerProps) {
   const [current, setCurrent] = useState(initialIndex)
   const [imgRatio, setImgRatio] = useState<number | undefined>(undefined)
+  const [downloading, setDownloading] = useState(false)
+  const [downloadError, setDownloadError] = useState<string | null>(null)
   const photo = photos[current]
 
   const prev = useCallback(() => setCurrent((i) => (i - 1 + photos.length) % photos.length), [photos.length])
@@ -46,6 +49,18 @@ export default function PhotoViewer({
 
   if (!photo) return null
 
+  async function handleDownloadCurrentPhoto() {
+    try {
+      setDownloadError(null)
+      setDownloading(true)
+      await downloadPhotos([photo], { forceArchive: false })
+    } catch (error) {
+      setDownloadError(error instanceof Error ? error.message : 'Không thể tải ảnh lúc này')
+    } finally {
+      setDownloading(false)
+    }
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/95 backdrop-blur-sm">
       {/* Top bar */}
@@ -55,15 +70,18 @@ export default function PhotoViewer({
         </div>
         <div className="flex items-center gap-2">
           {isPaid && (
-            <a
-              href={photo.originalUrl}
-              download={photo.filename}
-              target="_blank"
-              rel="noreferrer"
-              className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+            <button
+              type="button"
+              onClick={() => void handleDownloadCurrentPhoto()}
+              disabled={downloading}
+              className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors disabled:opacity-60"
             >
-              <Download className="w-5 h-5 text-white" />
-            </a>
+              {downloading ? (
+                <Loader2 className="w-5 h-5 text-white animate-spin" />
+              ) : (
+                <Download className="w-5 h-5 text-white" />
+              )}
+            </button>
           )}
           <button
             onClick={onClose}
@@ -73,6 +91,11 @@ export default function PhotoViewer({
           </button>
         </div>
       </div>
+      {downloadError ? (
+        <div className="absolute top-14 left-1/2 z-20 -translate-x-1/2 rounded-full bg-red-500/90 px-4 py-2 text-xs font-medium text-white">
+          {downloadError}
+        </div>
+      ) : null}
 
       {/* Image area — fill available space */}
       <div className="relative w-full flex-1 flex items-center justify-center px-2 sm:px-16 pt-14 pb-10">
