@@ -6,7 +6,7 @@ import { Photo, Project } from '@/lib/mock-data'
 import { PHOTO_BATCH_SIZE } from '@/lib/image-resize'
 import WatermarkCanvas from './WatermarkCanvas'
 import PhotoViewer from './PhotoViewer'
-import { Check, Download, Loader2, Lock, X, ZoomIn } from 'lucide-react'
+import { Check, Download, Loader2, Lock, X, ZoomIn, LayoutGrid, Columns2, Square } from 'lucide-react'
 import { downloadPhotos } from '@/lib/gallery-download'
 
 interface PhotoGridProps {
@@ -69,7 +69,6 @@ function ProtectedPhotoCard({
 function PaidPhotoCard({
   photo,
   onClick,
-  onDownload,
   onToggleSelect,
   selected,
   selectionMode,
@@ -77,7 +76,6 @@ function PaidPhotoCard({
 }: {
   photo: Photo
   onClick: () => void
-  onDownload: () => void
   onToggleSelect: () => void
   selected: boolean
   selectionMode: boolean
@@ -119,26 +117,6 @@ function PaidPhotoCard({
           <Check className="h-4 w-4" />
         </button>
       )}
-      {/* Download button */}
-      <button
-        type="button"
-        className="absolute bottom-2 right-2 z-10 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity bg-black/60 hover:bg-primary rounded-lg p-1.5 disabled:opacity-60"
-        title="Tải ảnh"
-        disabled={downloading}
-        onMouseDown={(e) => e.stopPropagation()}
-        onTouchStart={(e) => e.stopPropagation()}
-        onClickCapture={(e) => e.stopPropagation()}
-        onClick={(e) => {
-          e.stopPropagation()
-          void onDownload()
-        }}
-      >
-        {downloading ? (
-          <Loader2 className="w-3.5 h-3.5 animate-spin text-white" />
-        ) : (
-          <Download className="w-3.5 h-3.5 text-white" />
-        )}
-      </button>
     </div>
   )
 }
@@ -152,6 +130,7 @@ export default function PhotoGrid({ project }: PhotoGridProps) {
   const [downloadingPhotoId, setDownloadingPhotoId] = useState<string | null>(null)
   const [downloadingArchive, setDownloadingArchive] = useState(false)
   const [downloadError, setDownloadError] = useState<string | null>(null)
+  const [cols, setCols] = useState<1 | 2 | 3>(3)
   const loadMoreRef = useRef<HTMLDivElement | null>(null)
   const isPaid = project.status === 'paid'
   const previewWidth = project.effectiveImageResizeWidth !== undefined
@@ -252,90 +231,142 @@ export default function PhotoGrid({ project }: PhotoGridProps) {
     }
   }
 
+  const colsClass: Record<1 | 2 | 3, string> = {
+    1: 'grid-cols-1',
+    2: 'grid-cols-2',
+    3: 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4',
+  }
+
+  const ColsToggle = (
+    <div className="gallery-cols-toggle flex-shrink-0">
+      {([1, 2, 3] as const).map((n) => {
+        const icons = {
+          1: <Square className="h-4 w-4" />,
+          2: <Columns2 className="h-4 w-4" />,
+          3: <LayoutGrid className="h-4 w-4" />,
+        }
+        return (
+          <button
+            key={n}
+            type="button"
+            title={`${n} cột`}
+            onClick={() => setCols(n)}
+            className={`gallery-cols-btn ${
+              cols === n ? 'gallery-cols-btn-active' : 'gallery-cols-btn-idle'
+            }`}
+          >
+            {icons[n]}
+          </button>
+        )
+      })}
+    </div>
+  )
+
   return (
     <>
-      {isPaid && (
-        <div className="mb-4 rounded-2xl border border-border bg-white/80 p-3 shadow-sm">
-          <div className="flex flex-wrap items-center gap-2">
+      {isPaid ? (
+        /* ── Paid: everything on ONE row ── */
+        <div className="gallery-action-bar mb-4">
+          <div className="flex items-center gap-2">
+            {/* Action buttons */}
             <button
               type="button"
+              id="gallery-select-toggle"
               onClick={() => {
                 setDownloadError(null)
                 setSelectionMode((value) => {
-                  if (value) {
-                    setSelectedPhotoIds([])
-                  }
+                  if (value) setSelectedPhotoIds([])
                   return !value
                 })
               }}
-              className={`inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-colors ${
-                selectionMode
-                  ? 'bg-secondary text-foreground'
-                  : 'bg-primary/10 text-primary hover:bg-primary/15'
+              className={`gallery-action-btn flex-shrink-0 ${
+                selectionMode ? 'gallery-action-btn-ghost' : 'gallery-action-btn-outline'
               }`}
             >
               {selectionMode ? <X className="h-4 w-4" /> : <Check className="h-4 w-4" />}
               {selectionMode ? 'Hủy chọn' : 'Chọn nhiều'}
             </button>
-            <button
-              type="button"
-              onClick={() => void handleDownloadAllPhotos()}
-              disabled={downloadingArchive}
-              className="inline-flex items-center gap-2 rounded-xl bg-primary px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {downloadingArchive && !selectionMode ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Download className="h-4 w-4" />
-              )}
-              Tải tất cả
-            </button>
+
+            {!selectionMode && (
+              <button
+                type="button"
+                id="gallery-download-all"
+                onClick={() => void handleDownloadAllPhotos()}
+                disabled={downloadingArchive}
+                className="gallery-action-btn gallery-action-btn-primary flex-shrink-0"
+              >
+                {downloadingArchive ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4" />
+                )}
+                Tải tất cả
+              </button>
+            )}
+
             {selectionMode && (
               <>
+                <div className="gallery-action-divider flex-shrink-0" />
                 <button
                   type="button"
                   onClick={toggleSelectAll}
-                  className="inline-flex items-center gap-2 rounded-xl bg-secondary px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-secondary/80"
+                  className="gallery-action-btn gallery-action-btn-ghost flex-shrink-0"
                 >
                   <Check className="h-4 w-4" />
-                  {selectedCount === project.photos.length ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}
+                  {selectedCount === project.photos.length ? 'Bỏ chọn' : 'Chọn tất cả'}
                 </button>
+                {/* Download selected — blue when has selection */}
                 <button
                   type="button"
                   onClick={() => void handleDownloadSelectedPhotos()}
                   disabled={!selectedCount || downloadingArchive}
-                  className="inline-flex items-center gap-2 rounded-xl border border-border px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-secondary/60 disabled:cursor-not-allowed disabled:opacity-60"
+                  className={`gallery-action-btn flex-shrink-0 ${
+                    selectedCount > 0 ? 'gallery-action-btn-primary' : 'gallery-action-btn-secondary'
+                  }`}
                 >
                   {downloadingArchive ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
                     <Download className="h-4 w-4" />
                   )}
-                  Tải đã chọn ({selectedCount})
+                  Tải xuống{selectedCount > 0 ? ` (${selectedCount})` : ''}
                 </button>
               </>
             )}
-            <span className="ml-auto text-xs text-muted-foreground">
-              {selectionMode
-                ? `Đã chọn ${selectedCount}/${project.photos.length} ảnh`
-                : 'Tải từng ảnh bằng nút tải trên mỗi ảnh'}
-            </span>
+
+            {/* Right side: always flush-right */}
+            <div className="ml-auto flex flex-shrink-0 items-center gap-2">
+              {selectionMode && (
+                <span className="whitespace-nowrap text-xs text-muted-foreground">
+                  {selectedCount}/{project.photos.length}
+                </span>
+              )}
+              {!selectionMode && ColsToggle}
+            </div>
           </div>
-          {downloadError ? (
-            <p className="mt-2 text-sm text-red-500">{downloadError}</p>
-          ) : null}
+
+          {downloadError && (
+            <div className="mt-2.5 flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-red-500" />
+              {downloadError}
+            </div>
+          )}
+        </div>
+      ) : (
+        /* ── Unpaid: just toggle, right-aligned ── */
+        <div className="mb-3 flex justify-end">
+          {ColsToggle}
         </div>
       )}
 
       {/* Photo grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+      <div className={`grid gap-3 transition-all ${colsClass[cols]}`}>
         {visiblePhotos.map((photo, idx) =>
           isPaid ? (
             <PaidPhotoCard
               key={photo.id}
               photo={photo}
               onClick={() => setViewerIndex(idx)}
-              onDownload={() => void handleDownloadSinglePhoto(photo)}
               onToggleSelect={() => togglePhotoSelection(photo.id)}
               selected={selectedPhotoIds.includes(photo.id)}
               selectionMode={selectionMode}

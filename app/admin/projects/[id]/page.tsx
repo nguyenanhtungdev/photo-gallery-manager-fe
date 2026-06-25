@@ -43,6 +43,9 @@ import {
   X,
   ZoomIn,
   Pencil,
+  LayoutGrid,
+  Columns2,
+  Square,
 } from "lucide-react";
 
 /* ─── Lightbox ─────────────────────────────────────────────── */
@@ -1282,22 +1285,30 @@ export default function ProjectDetailPage({
                 </span>
               </h2>
             </div>
-            <label className="flex flex-shrink-0 items-center gap-2 text-xs text-muted-foreground">
-              <span>Bố cục</span>
-              <select
-                value={photoGridLayout}
-                onChange={(event) =>
-                  setPhotoGridLayout(
-                    Number(event.target.value) as PhotoGridLayout,
-                  )
+            <div className="gallery-cols-toggle">
+              {([1, 2, 3] as const).map((n) => {
+                const icons = {
+                  1: <Square className="h-4 w-4" />,
+                  2: <Columns2 className="h-4 w-4" />,
+                  3: <LayoutGrid className="h-4 w-4" />,
                 }
-                className="h-9 min-w-[92px] rounded-xl border border-border bg-secondary/70 px-3 text-sm font-medium text-foreground outline-none transition-colors focus:border-primary focus:bg-white"
-              >
-                <option value={1}>1 cột</option>
-                <option value={2}>2 cột</option>
-                <option value={3}>3 cột</option>
-              </select>
-            </label>
+                return (
+                  <button
+                    key={n}
+                    type="button"
+                    title={`${n} cột`}
+                    onClick={() => setPhotoGridLayout(n)}
+                    className={`gallery-cols-btn ${
+                      photoGridLayout === n
+                        ? 'gallery-cols-btn-active'
+                        : 'gallery-cols-btn-idle'
+                    }`}
+                  >
+                    {icons[n]}
+                  </button>
+                )
+              })}
+            </div>
           </div>
           <p className="text-xs text-muted-foreground">
             Khách chưa thanh toán sẽ thấy ảnh preview:{" "}

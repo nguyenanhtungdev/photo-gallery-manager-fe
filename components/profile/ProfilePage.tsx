@@ -379,11 +379,13 @@ export function ProfilePage({
           <InfoRow icon={Mail} label="Email" value={email} muted />
           <InfoRow icon={UserCircle} label="Tên đăng nhập" value={username} muted />
         </div>
-        <div className={`border-t border-border px-4 py-2 text-xs transition-opacity duration-300 ${infoSaved ? 'opacity-100 text-green-600' : 'opacity-0'}`}>
-          <span className="inline-flex items-center gap-1.5">
-            <CheckCircle2 className="h-3.5 w-3.5" /> Đã lưu thành công
-          </span>
-        </div>
+        {infoSaved ? (
+          <div className="border-t border-border px-4 py-2 text-xs text-green-600">
+            <span className="inline-flex items-center gap-1.5">
+              <CheckCircle2 className="h-3.5 w-3.5" /> Đã lưu thành công
+            </span>
+          </div>
+        ) : null}
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-border bg-white shadow-sm">

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import Image from 'next/image'
 import { X, ChevronLeft, ChevronRight, Download, Loader2 } from 'lucide-react'
 import WatermarkCanvas from './WatermarkCanvas'
@@ -23,11 +23,13 @@ export default function PhotoViewer({
   const [downloading, setDownloading] = useState(false)
   const [downloadError, setDownloadError] = useState<string | null>(null)
   const photo = photos[current]
+  const thumbStripRef = useRef<HTMLDivElement>(null)
+  const thumbRefs = useRef<(HTMLButtonElement | null)[]>([])
 
   const prev = useCallback(() => setCurrent((i) => (i - 1 + photos.length) % photos.length), [photos.length])
   const next = useCallback(() => setCurrent((i) => (i + 1) % photos.length), [photos.length])
 
-  // Load aspect ratio thực của ảnh hiện tại để watermark nằm đúng trên ảnh
+  // Load aspect ratio for watermark positioning
   useEffect(() => {
     if (!photo || isPaid) return
     const img = new window.Image()
@@ -37,6 +39,7 @@ export default function PhotoViewer({
     img.src = photo.previewUrl
   }, [photo, isPaid])
 
+  // Keyboard navigation
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === 'ArrowLeft') prev()
@@ -46,6 +49,23 @@ export default function PhotoViewer({
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [prev, next, onClose])
+
+  // Auto-scroll the thumbnail strip to keep current thumb visible
+  useEffect(() => {
+    const strip = thumbStripRef.current
+    const thumb = thumbRefs.current[current]
+    if (!strip || !thumb) return
+
+    const stripRect = strip.getBoundingClientRect()
+    const thumbRect = thumb.getBoundingClientRect()
+
+    const scrollLeft =
+      thumb.offsetLeft - strip.clientWidth / 2 + thumb.offsetWidth / 2
+
+    strip.scrollTo({ left: scrollLeft, behavior: 'smooth' })
+
+    void stripRect; void thumbRect // suppress unused-var warnings
+  }, [current])
 
   if (!photo) return null
 
@@ -62,10 +82,11 @@ export default function PhotoViewer({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/95 backdrop-blur-sm">
-      {/* Top bar */}
-      <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-4 py-3">
-        <div className="bg-black/50 rounded-full px-4 py-1.5 text-sm text-white font-medium">
+    <div className="fixed inset-0 z-50 flex flex-col bg-black/95 backdrop-blur-sm">
+
+      {/* ── Top bar ── */}
+      <div className="flex items-center justify-between px-4 py-3 flex-shrink-0">
+        <div className="bg-white/10 rounded-full px-4 py-1.5 text-sm text-white font-medium">
           {current + 1} / {photos.length}
         </div>
         <div className="flex items-center gap-2">
@@ -91,15 +112,18 @@ export default function PhotoViewer({
           </button>
         </div>
       </div>
-      {downloadError ? (
-        <div className="absolute top-14 left-1/2 z-20 -translate-x-1/2 rounded-full bg-red-500/90 px-4 py-2 text-xs font-medium text-white">
-          {downloadError}
-        </div>
-      ) : null}
 
-      {/* Image area — fill available space */}
-      <div className="relative w-full flex-1 flex items-center justify-center px-2 sm:px-16 pt-14 pb-10">
-        {/* Image wrapper — tận dụng tối đa diện tích */}
+      {/* Download error */}
+      {downloadError && (
+        <div className="flex-shrink-0 flex justify-center pb-1">
+          <div className="rounded-full bg-red-500/90 px-4 py-2 text-xs font-medium text-white">
+            {downloadError}
+          </div>
+        </div>
+      )}
+
+      {/* ── Main image area ── */}
+      <div className="relative flex-1 flex items-center justify-center px-2 sm:px-16 min-h-0">
         <div
           className="relative w-full h-full"
           onContextMenu={(e) => e.preventDefault()}
@@ -128,18 +152,18 @@ export default function PhotoViewer({
           )}
         </div>
 
-        {/* Nav — overlay trên image area */}
+        {/* Prev / Next nav */}
         {photos.length > 1 && (
           <>
             <button
               onClick={prev}
-              className="absolute left-2 sm:left-4 z-30 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-black/40 hover:bg-black/60 flex items-center justify-center transition-colors"
+              className="absolute left-2 sm:left-4 z-30 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-black/40 hover:bg-black/70 flex items-center justify-center transition-colors"
             >
               <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
             </button>
             <button
               onClick={next}
-              className="absolute right-2 sm:right-4 z-30 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-black/40 hover:bg-black/60 flex items-center justify-center transition-colors"
+              className="absolute right-2 sm:right-4 z-30 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-black/40 hover:bg-black/70 flex items-center justify-center transition-colors"
             >
               <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
             </button>
@@ -147,10 +171,48 @@ export default function PhotoViewer({
         )}
       </div>
 
-      {/* Filename */}
-      <p className="absolute bottom-2 left-1/2 -translate-x-1/2 text-white/40 text-xs whitespace-nowrap overflow-hidden text-ellipsis max-w-[80vw]">
+      {/* ── Filename ── */}
+      <p className="flex-shrink-0 text-center text-white/40 text-xs py-1.5 overflow-hidden text-ellipsis whitespace-nowrap px-8">
         {photo.filename}
       </p>
+
+      {/* ── Thumbnail strip (Facebook-style) ── */}
+      {photos.length > 1 && (
+        <div className="flex-shrink-0 pb-4">
+          <div
+            ref={thumbStripRef}
+            className="viewer-thumb-strip"
+          >
+            {photos.map((p, idx) => {
+              const isActive = idx === current
+              return (
+                <button
+                  key={p.id}
+                  ref={(el) => { thumbRefs.current[idx] = el }}
+                  type="button"
+                  onClick={() => setCurrent(idx)}
+                  className={`viewer-thumb ${isActive ? 'viewer-thumb-active' : 'viewer-thumb-idle'}`}
+                  title={p.filename}
+                >
+                  <Image
+                    src={isPaid ? p.originalUrl : p.previewUrl}
+                    alt={p.filename}
+                    fill
+                    className="object-cover"
+                    sizes="80px"
+                    draggable={false}
+                    unoptimized
+                  />
+                  {/* dim inactive */}
+                  {!isActive && (
+                    <div className="absolute inset-0 bg-black/40 transition-opacity group-hover:opacity-0" />
+                  )}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

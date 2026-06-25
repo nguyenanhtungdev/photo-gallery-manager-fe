@@ -5,29 +5,29 @@
 
 :root {
   /* Light theme — white + blue */
-  --background: 210 40% 98%;        /* #f8fafc */
-  --foreground: 222 47% 11%;        /* #0f172a */
-  --card: 0 0% 100%;                /* #ffffff */
+  --background: 210 40% 98%; /* #f8fafc */
+  --foreground: 222 47% 11%; /* #0f172a */
+  --card: 0 0% 100%; /* #ffffff */
   --card-foreground: 222 47% 11%;
   --popover: 0 0% 100%;
   --popover-foreground: 222 47% 11%;
-  --primary: 221 83% 53%;           /* #2563eb — blue-600 */
+  --primary: 221 83% 53%; /* #2563eb — blue-600 */
   --primary-foreground: 0 0% 100%;
-  --secondary: 210 40% 96%;         /* #f1f5f9 */
+  --secondary: 210 40% 96%; /* #f1f5f9 */
   --secondary-foreground: 222 47% 25%;
   --muted: 210 40% 96%;
-  --muted-foreground: 215 16% 47%;  /* #64748b */
-  --accent: 199 89% 48%;            /* #0ea5e9 — sky-500 */
+  --muted-foreground: 215 16% 47%; /* #64748b */
+  --accent: 199 89% 48%; /* #0ea5e9 — sky-500 */
   --accent-foreground: 0 0% 100%;
   --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 100%;
-  --border: 214 32% 91%;            /* #e2e8f0 */
+  --border: 214 32% 91%; /* #e2e8f0 */
   --input: 214 32% 91%;
   --ring: 221 83% 53%;
   --radius: 0.75rem;
 
-  --status-unpaid: 38 92% 50%;      /* amber */
-  --status-paid: 160 84% 39%;       /* emerald */
+  --status-unpaid: 38 92% 50%; /* amber */
+  --status-paid: 160 84% 39%; /* emerald */
   --sidebar-w: 240px;
 }
 
@@ -57,29 +57,45 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
-* { box-sizing: border-box; }
-html { scroll-behavior: smooth; }
+* {
+  box-sizing: border-box;
+}
+html {
+  scroll-behavior: smooth;
+}
 
 body {
   background-color: hsl(var(--background));
   color: hsl(var(--foreground));
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: "Inter", system-ui, sans-serif;
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
 }
 
 /* Scrollbar */
-::-webkit-scrollbar { width: 5px; height: 5px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 99px; }
-::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground) / 0.5); }
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 99px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.5);
+}
 
 /* Cards */
 .card {
   background: hsl(var(--card));
   border: 1px solid hsl(var(--border));
   border-radius: var(--radius);
-  box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.06),
+    0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
 /* Gradient text */
@@ -104,7 +120,11 @@ body {
 
 /* Blue gradient hero */
 .hero-gradient {
-  background: linear-gradient(135deg, hsl(221,83%,53%) 0%, hsl(199,89%,48%) 100%);
+  background: linear-gradient(
+    135deg,
+    hsl(221, 83%, 53%) 0%,
+    hsl(199, 89%, 48%) 100%
+  );
 }
 
 /* Stat card accent bar */
@@ -112,11 +132,13 @@ body {
   background: hsl(var(--card));
   border: 1px solid hsl(var(--border));
   border-radius: var(--radius);
-  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
 /* Bottom nav safe area */
-.bottom-nav-pad { padding-bottom: env(safe-area-inset-bottom, 0px); }
+.bottom-nav-pad {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
 
 /* ═══════════════════════════════════════
    AUTH PAGES  (login / register)
@@ -135,7 +157,11 @@ body {
 .auth-hero {
   position: relative;
   overflow: hidden;
-  background: linear-gradient(135deg, hsl(221,83%,53%) 0%, hsl(199,89%,48%) 100%);
+  background: linear-gradient(
+    135deg,
+    hsl(221, 83%, 53%) 0%,
+    hsl(199, 89%, 48%) 100%
+  );
   padding: 3.5rem 1.5rem 5.5rem;
   text-align: center;
 }
@@ -146,11 +172,11 @@ body {
   width: 72px;
   height: 72px;
   border-radius: 22px;
-  background: rgba(255,255,255,0.18);
+  background: rgba(255, 255, 255, 0.18);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   margin-bottom: 1rem;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
 }
 .auth-hero-title {
   font-size: 1.625rem;
@@ -160,7 +186,7 @@ body {
 }
 .auth-hero-subtitle {
   font-size: 0.875rem;
-  color: rgba(255,255,255,0.78);
+  color: rgba(255, 255, 255, 0.78);
   margin-top: 0.25rem;
 }
 
@@ -172,21 +198,25 @@ body {
   pointer-events: none;
 }
 .auth-blob-1 {
-  width: 200px; height: 200px;
+  width: 200px;
+  height: 200px;
   background: white;
-  top: -60px; right: -60px;
+  top: -60px;
+  right: -60px;
 }
 .auth-blob-2 {
-  width: 140px; height: 140px;
+  width: 140px;
+  height: 140px;
   background: white;
-  bottom: 10px; left: -40px;
+  bottom: 10px;
+  left: -40px;
 }
 
 /* ── Card wrapper ── */
 .auth-card-wrap {
   flex: 1;
   margin-top: -2rem;
-  background: hsl(210,40%,98%);
+  background: hsl(210, 40%, 98%);
   border-radius: 1.5rem 1.5rem 0 0;
   padding: 2rem 1.25rem 3rem;
   display: flex;
@@ -198,7 +228,9 @@ body {
   border: 1px solid hsl(var(--border));
   border-radius: 1.25rem;
   padding: 1.5rem 1.25rem;
-  box-shadow: 0 2px 16px rgba(0,0,0,0.06), 0 0 0 1px rgba(0,0,0,0.02);
+  box-shadow:
+    0 2px 16px rgba(0, 0, 0, 0.06),
+    0 0 0 1px rgba(0, 0, 0, 0.02);
   max-width: 420px;
   width: 100%;
   margin: 0 auto;
@@ -282,7 +314,10 @@ body {
   font-size: 0.9375rem;
   color: hsl(var(--foreground));
   outline: none;
-  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s,
+    background 0.15s;
   -webkit-tap-highlight-color: transparent;
 }
 .auth-input::placeholder {
@@ -307,12 +342,14 @@ body {
   transition: color 0.15s;
   -webkit-tap-highlight-color: transparent;
 }
-.auth-eye-btn:hover { color: hsl(var(--foreground)); }
+.auth-eye-btn:hover {
+  color: hsl(var(--foreground));
+}
 
 /* ── Hint box ── */
 .auth-hint {
-  background: hsl(214,100%,97%);
-  border: 1px solid hsl(214,70%,88%);
+  background: hsl(214, 100%, 97%);
+  border: 1px solid hsl(214, 70%, 88%);
   border-radius: 0.875rem;
   padding: 0.75rem 1rem;
   font-size: 0.75rem;
@@ -329,33 +366,50 @@ body {
 /* ── Submit button ── */
 .auth-submit-btn {
   width: 100%;
-  background: linear-gradient(135deg, hsl(221,83%,53%) 0%, hsl(199,89%,48%) 100%);
+  background: linear-gradient(
+    135deg,
+    hsl(221, 83%, 53%) 0%,
+    hsl(199, 89%, 48%) 100%
+  );
   color: #fff;
   font-size: 0.9375rem;
   font-weight: 700;
   padding: 0.9375rem 1rem;
   border-radius: 0.875rem;
-  transition: opacity 0.15s, transform 0.1s;
-  box-shadow: 0 4px 14px hsl(221,83%,53% / 0.38);
+  transition:
+    opacity 0.15s,
+    transform 0.1s;
+  box-shadow: 0 4px 14px hsl(221, 83%, 53% / 0.38);
   letter-spacing: 0.01em;
   -webkit-tap-highlight-color: transparent;
   margin-top: 0.25rem;
 }
-.auth-submit-btn:hover:not(:disabled) { opacity: 0.92; }
-.auth-submit-btn:active:not(:disabled) { transform: scale(0.98); }
-.auth-submit-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.auth-submit-btn:hover:not(:disabled) {
+  opacity: 0.92;
+}
+.auth-submit-btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+.auth-submit-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
 
 /* ── Spinner ── */
 .auth-spinner {
   display: inline-block;
   width: 1rem;
   height: 1rem;
-  border: 2px solid rgba(255,255,255,0.35);
+  border: 2px solid rgba(255, 255, 255, 0.35);
   border-top-color: #fff;
   border-radius: 9999px;
   animation: spin 0.7s linear infinite;
 }
-@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
 
 /* ── Password strength ── */
 .auth-strength-wrap {
@@ -402,17 +456,25 @@ body {
   text-decoration: none;
   border-bottom: 1.5px solid hsl(var(--primary) / 0.35);
   padding-bottom: 1px;
-  transition: border-color 0.15s, color 0.15s;
+  transition:
+    border-color 0.15s,
+    color 0.15s;
 }
 .auth-bottom-link-anchor:hover {
-  color: hsl(221,83%,40%);
-  border-color: hsl(221,83%,40%);
+  color: hsl(221, 83%, 40%);
+  border-color: hsl(221, 83%, 40%);
 }
 
 /* ── Toast / popup ── */
 @keyframes toast-in {
-  from { opacity: 0; transform: translateX(-50%) translateY(-0.75rem); }
-  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-0.75rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
 }
 .toast-popup {
   animation: toast-in 0.22s ease-out forwards;
@@ -420,6 +482,333 @@ body {
 
 /* ── fadeSlideDown (used by new auth pages) ── */
 @keyframes fadeSlideDown {
-  from { opacity: 0; transform: translateX(-50%) translateY(-12px); }
-  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* ═══════════════════════════════════════
+   GALLERY SHARE PAGE
+═══════════════════════════════════════ */
+
+/* ── Hero section ── */
+.gallery-hero {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(
+    135deg,
+    hsl(221, 83%, 53%) 0%,
+    hsl(199, 89%, 48%) 100%
+  );
+}
+
+.gallery-hero-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  flex-shrink: 0;
+}
+
+/* ── Status badges ── */
+.gallery-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.4rem 0.875rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  white-space: nowrap;
+}
+.gallery-badge-paid {
+  background: rgba(52, 211, 153, 0.22);
+  color: #d1fae5;
+  border: 1px solid rgba(52, 211, 153, 0.35);
+}
+.gallery-badge-pending {
+  background: rgba(251, 191, 36, 0.22);
+  color: #fef3c7;
+  border: 1px solid rgba(251, 191, 36, 0.35);
+}
+
+/* ── Stat pills (inside hero) ── */
+.gallery-stat-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: rgba(255, 255, 255, 0.9);
+  padding: 0.375rem 0.875rem;
+  border-radius: 9999px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+.gallery-stat-pill-green {
+  background: rgba(52, 211, 153, 0.2);
+  border-color: rgba(52, 211, 153, 0.35);
+}
+.gallery-stat-pill-amber {
+  background: rgba(251, 191, 36, 0.2);
+  border-color: rgba(251, 191, 36, 0.35);
+}
+
+/* ── Unlock celebration banner ── */
+.gallery-unlock-banner {
+  background: linear-gradient(
+    90deg,
+    hsl(160, 84%, 35%) 0%,
+    hsl(160, 70%, 42%) 100%
+  );
+  padding: 0.75rem 1rem;
+  text-align: center;
+}
+
+/* ── Warning card (unpaid) ── */
+.gallery-warning-card {
+  background: hsl(43, 96%, 97%);
+  border: 1px solid hsl(43, 74%, 82%);
+  border-radius: 1rem;
+  padding: 1.125rem 1.25rem;
+}
+.gallery-warning-icon-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  background: hsl(43, 96%, 88%);
+  border: 1px solid hsl(43, 74%, 78%);
+}
+
+/* ── Gallery action bar (download toolbar) ── */
+.gallery-action-bar {
+  margin-bottom: 1rem;
+  border-radius: 1rem;
+  border: 1px solid hsl(var(--border));
+  background: hsl(0, 0%, 100%);
+  padding: 0.75rem;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+}
+
+.gallery-action-divider {
+  width: 1px;
+  height: 24px;
+  background: hsl(var(--border));
+  flex-shrink: 0;
+  margin: 0 0.125rem;
+}
+
+/* ── Action buttons ── */
+.gallery-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 0.75rem;
+  padding: 0.5rem 0.875rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition:
+    background 0.15s,
+    opacity 0.15s,
+    transform 0.1s;
+  white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+}
+.gallery-action-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.gallery-action-btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.gallery-action-btn-primary {
+  background: linear-gradient(
+    135deg,
+    hsl(221, 83%, 53%) 0%,
+    hsl(199, 89%, 48%) 100%
+  );
+  color: #fff;
+  box-shadow: 0 3px 10px hsl(221, 83%, 53% / 0.3);
+}
+.gallery-action-btn-primary:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.gallery-action-btn-outline {
+  background: hsl(var(--primary) / 0.08);
+  color: hsl(var(--primary));
+  border: 1px solid hsl(var(--primary) / 0.2);
+}
+.gallery-action-btn-outline:hover:not(:disabled) {
+  background: hsl(var(--primary) / 0.14);
+}
+
+.gallery-action-btn-ghost {
+  background: hsl(var(--secondary));
+  color: hsl(var(--foreground));
+}
+.gallery-action-btn-ghost:hover:not(:disabled) {
+  background: hsl(var(--muted));
+}
+
+.gallery-action-btn-secondary {
+  background: transparent;
+  color: hsl(var(--foreground));
+  border: 1px solid hsl(var(--border));
+}
+.gallery-action-btn-secondary:hover:not(:disabled) {
+  background: hsl(var(--secondary));
+}
+
+/* glass utility */
+.glass {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+}
+
+/* ═══════════════════════════════════════
+   PHOTO VIEWER — THUMBNAIL STRIP
+═══════════════════════════════════════ */
+
+.viewer-thumb-strip {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 4px 16px 6px;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none; /* Firefox */
+}
+.viewer-thumb-strip::-webkit-scrollbar {
+  display: none;
+}
+
+.viewer-thumb {
+  position: relative;
+  flex-shrink: 0;
+  width: 72px;
+  height: 56px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 2.5px solid transparent;
+  transition:
+    border-color 0.15s,
+    opacity 0.15s,
+    transform 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.viewer-thumb:hover {
+  opacity: 1 !important;
+  transform: scale(1.04);
+}
+
+.viewer-thumb-active {
+  border-color: hsl(221, 83%, 60%);
+  box-shadow: 0 0 0 2px hsl(221, 83%, 53% / 0.5);
+  transform: scale(1.06);
+}
+.viewer-thumb-idle {
+  opacity: 0.6;
+}
+.viewer-thumb-idle:hover {
+  opacity: 1;
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+/* ═══════════════════════════════════════
+   COLUMN LAYOUT TOGGLE
+═══════════════════════════════════════ */
+
+.gallery-cols-toggle {
+  display: inline-flex;
+  align-items: center;
+  background: hsl(var(--secondary));
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.625rem;
+  padding: 3px;
+  gap: 2px;
+}
+
+.gallery-cols-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 0.5rem;
+  transition:
+    background 0.12s,
+    color 0.12s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.gallery-cols-btn-active {
+  background: hsl(0, 0%, 100%);
+  color: hsl(var(--primary));
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+}
+
+.gallery-cols-btn-idle {
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+}
+
+.gallery-cols-btn-idle:hover {
+  background: hsl(var(--muted));
+  color: hsl(var(--foreground));
+}
+
+/* Individual bordered toggle buttons (projects page) */
+.cols-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 0.6rem;
+  border: 1.5px solid hsl(var(--border));
+  background: hsl(0, 0%, 100%);
+  transition: background 0.12s, color 0.12s, border-color 0.12s, box-shadow 0.12s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.cols-btn-active {
+  background: hsl(var(--primary));
+  border-color: hsl(var(--primary));
+  color: hsl(0, 0%, 100%);
+  box-shadow: 0 2px 8px hsl(var(--primary) / 0.3);
+}
+
+.cols-btn-idle {
+  color: hsl(var(--muted-foreground));
+}
+
+.cols-btn-idle:hover {
+  border-color: hsl(var(--primary) / 0.4);
+  color: hsl(var(--primary));
+  background: hsl(var(--primary) / 0.05);
 }

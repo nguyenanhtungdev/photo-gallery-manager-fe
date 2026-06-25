@@ -256,7 +256,7 @@ export default function NotificationsPage() {
   return (
     <div className="mx-auto max-w-5xl px-4 pb-6 pt-3 md:px-6 md:py-6">
       <section className="mt-3 md:mt-0">
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div className="flex flex-col gap-3">
           <div className="min-w-0">
             <h1 className="text-[1.8rem] font-bold leading-tight tracking-[-0.03em] text-foreground md:text-3xl">
               Thông báo
@@ -266,27 +266,26 @@ export default function NotificationsPage() {
             </p>
             {!loading ? (
               <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/8 px-3 py-1.5 font-semibold text-primary">
+                <span className="inline-flex h-9 items-center gap-1.5 rounded-full bg-primary/8 px-3.5 text-sm font-semibold text-primary">
                   <span className="h-2 w-2 rounded-full bg-primary" />
                   {unreadCount > 0 ? `${unreadCount} chưa đọc` : 'Đã đọc hết'}
                 </span>
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-secondary px-3 py-1.5">
+                <span className="inline-flex h-9 items-center gap-1.5 rounded-full bg-secondary px-3.5 text-sm font-medium">
                   <Bell className="h-3.5 w-3.5" />
                   {notifications.length} thông báo
                 </span>
+                <button
+                  type="button"
+                  onClick={() => void handleMarkAllAsRead()}
+                  disabled={markingAll || unreadCount === 0}
+                  className="inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-full border border-border bg-white px-3.5 text-sm font-medium text-foreground transition-colors hover:border-primary/20 hover:text-primary disabled:cursor-not-allowed disabled:opacity-45"
+                >
+                  {markingAll ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                  Đánh dấu tất cả đã đọc
+                </button>
               </div>
             ) : null}
           </div>
-
-          <button
-            type="button"
-            onClick={() => void handleMarkAllAsRead()}
-            disabled={markingAll || unreadCount === 0}
-            className="inline-flex h-9 shrink-0 items-center justify-center gap-2 self-start rounded-full border border-border bg-white px-3.5 text-sm font-semibold text-foreground transition-colors hover:border-primary/20 hover:text-primary disabled:cursor-not-allowed disabled:opacity-45"
-          >
-            {markingAll ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-            Đánh dấu tất cả đã đọc
-          </button>
         </div>
       </section>
 
