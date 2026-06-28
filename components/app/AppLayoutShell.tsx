@@ -99,32 +99,7 @@ export function AppLayoutShell({
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <header
-          className="md:hidden flex-shrink-0 rounded-b-3xl px-4 pt-6 pb-5"
-          style={{
-            background: 'linear-gradient(135deg, hsl(221,83%,53%) 0%, hsl(199,89%,48%) 100%)',
-          }}
-        >
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl bg-white/20 backdrop-blur-sm">
-                <Camera className="h-4 w-4 text-white" />
-              </div>
-              <div>
-                <p className="text-xl font-bold leading-tight text-white">{meta.title}</p>
-                <p className="mt-0.5 text-xs text-white/70">{meta.subtitle}</p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={handleLogout}
-              aria-label="Đăng xuất"
-              className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/15 text-white backdrop-blur-sm transition-colors hover:bg-white/25"
-            >
-              <LogOut className="h-4 w-4" />
-            </button>
-          </div>
-        </header>
+
 
         <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
           {children}

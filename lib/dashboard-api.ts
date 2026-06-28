@@ -5,10 +5,12 @@ type DashboardSummary = {
   totalProjects: number
   paidProjects: number
   waitingProjects: number
+  cancelledProjects: number
   totalPhotos: number
   totalViewSessions: number
   totalPaidAmount: number
   paidPercentage: number
+  cancellationRate: number
   averagePhotosPerProject: number
 }
 

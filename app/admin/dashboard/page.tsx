@@ -1,12 +1,14 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import {
-  ArrowRight, Camera, CheckCircle2, ChevronRight, Clock, FolderOpen,
-  ImageIcon, ReceiptText, Shield, UserCheck, Users, Plus,
-  TrendingUp, Activity, ScrollText, Sparkles, Sun, Sunset, Moon,
+  ArrowRight, Ban, Camera, CheckCircle2, ChevronRight, Clock, FolderOpen,
+  ImageIcon, ReceiptText, Shield, UserCheck, Users,
+  TrendingUp, Activity,
 } from 'lucide-react'
+import { getProjectStatusMeta } from '@/lib/project-status'
+import { ProjectStatusIcon } from '@/lib/project-status-icons'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import {
   getAdminDashboardOverview,
@@ -20,10 +22,12 @@ const EMPTY_SUMMARY = {
   totalProjects: 0,
   paidProjects: 0,
   waitingProjects: 0,
+  cancelledProjects: 0,
   totalPhotos: 0,
   totalViewSessions: 0,
   totalPaidAmount: 0,
   paidPercentage: 0,
+  cancellationRate: 0,
   averagePhotosPerProject: 0,
 }
 
@@ -31,27 +35,27 @@ function formatRole(role: 'admin' | 'user') {
   return role === 'admin' ? 'Admin' : 'User'
 }
 
-/** Animated count-up number */
 function AnimatedNumber({ target, duration = 800 }: { target: number; duration?: number }) {
   const [display, setDisplay] = useState(0)
-  const raf = useRef<number>(0)
 
   useEffect(() => {
     const start = performance.now()
+    let raf = 0
+
     function tick(now: number) {
       const progress = Math.min((now - start) / duration, 1)
       const eased = 1 - Math.pow(1 - progress, 3)
       setDisplay(Math.round(eased * target))
-      if (progress < 1) raf.current = requestAnimationFrame(tick)
+      if (progress < 1) raf = requestAnimationFrame(tick)
     }
-    raf.current = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(raf.current)
+
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
   }, [target, duration])
 
   return <>{display.toLocaleString('vi-VN')}</>
 }
 
-/** Skeleton pulse block */
 function Skeleton({ className = '' }: { className?: string }) {
   return <span className={`inline-block animate-pulse rounded-xl bg-white/20 ${className}`} />
 }
@@ -60,10 +64,8 @@ export default function DashboardPage() {
   const [dashboard, setDashboard] = useState<AdminDashboardOverview | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
-    setMounted(true)
     let active = true
 
     async function loadDashboard() {
@@ -85,6 +87,9 @@ export default function DashboardPage() {
   }, [])
 
   const summary = dashboard?.summary ?? EMPTY_SUMMARY
+  const cancellationRateLabel = Number.isFinite(dashboard?.summary?.cancellationRate)
+    ? `${dashboard?.summary?.cancellationRate}%`
+    : 'NA'
 
   const primaryStats = [
     {
@@ -116,19 +121,6 @@ export default function DashboardPage() {
       shadow: 'shadow-violet-200',
     },
   ]
-
-  const quickActions = [
-    { label: 'Tạo project', href: '/admin/projects', icon: Plus, color: 'bg-primary text-white hover:bg-primary/90' },
-    { label: 'Người dùng', href: '/admin/users', icon: Users, color: 'bg-white border border-border text-foreground hover:border-primary/40 hover:text-primary' },
-    { label: 'Logs', href: '/admin/logs', icon: ScrollText, color: 'bg-white border border-border text-foreground hover:border-primary/40 hover:text-primary' },
-  ]
-
-  const now = new Date()
-  const hour = now.getHours()
-  const greeting = hour < 12 ? 'Chào buổi sáng' : hour < 18 ? 'Chào buổi chiều' : 'Chào buổi tối'
-  const GreetIcon = hour < 12 ? Sun : hour < 18 ? Sunset : Moon
-  const greetColor = hour < 12 ? 'text-amber-500' : hour < 18 ? 'text-orange-500' : 'text-indigo-400'
-
   return (
     <div className="mx-auto max-w-6xl space-y-5 px-4 py-5 md:px-6 md:py-7">
 
@@ -180,7 +172,7 @@ export default function DashboardPage() {
           <div className="h-2.5 w-full overflow-hidden rounded-full bg-secondary">
             <div
               className="hero-gradient h-2.5 rounded-full transition-all duration-1000 ease-out"
-              style={{ width: mounted && !loading ? `${summary.paidPercentage}%` : '0%' }}
+              style={{ width: loading ? '0%' : `${summary.paidPercentage}%` }}
             />
           </div>
           <div className="mt-2 flex justify-between text-xs">
@@ -189,6 +181,11 @@ export default function DashboardPage() {
             </span>
             <span className="flex items-center gap-1 font-medium text-amber-600">
               <Clock className="h-3 w-3" /> {summary.waitingProjects} chờ thanh toán
+            </span>
+          </div>
+          <div className="mt-2 text-xs">
+            <span className="flex items-center gap-1 font-medium text-rose-600">
+              <Ban className="h-3 w-3" /> {summary.cancelledProjects} đã hủy
             </span>
           </div>
 
@@ -214,9 +211,11 @@ export default function DashboardPage() {
           {[
             { label: 'Đã thanh toán', value: summary.paidProjects, icon: CheckCircle2, bg: 'bg-emerald-50', border: 'border-emerald-100', text: 'text-emerald-700', dot: 'bg-emerald-500' },
             { label: 'Chờ thanh toán', value: summary.waitingProjects, icon: Clock, bg: 'bg-amber-50', border: 'border-amber-100', text: 'text-amber-700', dot: 'bg-amber-500' },
+            { label: 'Đã hủy', value: summary.cancelledProjects, icon: Ban, bg: 'bg-rose-50', border: 'border-rose-100', text: 'text-rose-700', dot: 'bg-rose-500' },
+            { label: 'Tỷ lệ hủy', value: null, displayValue: cancellationRateLabel, meta: `${summary.cancelledProjects} hủy / ${summary.paidProjects} thanh toán`, icon: Ban, bg: 'bg-pink-50', border: 'border-pink-100', text: 'text-pink-700', dot: 'bg-pink-500' },
             { label: 'Tổng ảnh', value: summary.totalPhotos, icon: ImageIcon, bg: 'bg-sky-50', border: 'border-sky-100', text: 'text-sky-700', dot: 'bg-sky-500' },
             { label: 'Doanh thu', value: null, displayValue: formatCurrency(summary.totalPaidAmount), icon: ReceiptText, bg: 'bg-rose-50', border: 'border-rose-100', text: 'text-rose-700', dot: 'bg-rose-500' },
-          ].map(({ label, value, displayValue, icon: Icon, bg, border, text, dot }) => (
+          ].map(({ label, value, displayValue, meta, icon: Icon, bg, border, text, dot }) => (
             <div key={label} className={`flex items-center gap-3 rounded-xl border ${border} ${bg} px-4 py-3 transition-all hover:shadow-sm`}>
               <div className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-white shadow-sm ${text}`}>
                 <Icon className="h-4.5 w-4.5" />
@@ -226,6 +225,7 @@ export default function DashboardPage() {
                   {loading ? '–' : displayValue ?? <AnimatedNumber target={value ?? 0} />}
                 </p>
                 <p className={`text-xs ${text} opacity-70`}>{label}</p>
+                {meta ? <p className={`mt-0.5 text-[11px] ${text} opacity-70`}>{meta}</p> : null}
               </div>
               <div className={`h-2 w-2 flex-shrink-0 rounded-full ${dot} opacity-60`} />
             </div>
@@ -335,18 +335,17 @@ export default function DashboardPage() {
             </div>
           ) : dashboard?.recentProjects.length ? (
             <div className="divide-y divide-border/60">
-              {dashboard.recentProjects.map((project) => (
+              {dashboard.recentProjects.map((project) => {
+                const statusMeta = getProjectStatusMeta(project.status)
+
+                return (
                 <Link
                   key={project.id}
                   href={`/admin/projects/${project.id}`}
                   className="group flex items-center gap-3 px-4 py-3 transition-colors hover:bg-secondary/30"
                 >
-                  <div className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl transition-colors ${
-                    project.status === 'paid'
-                      ? 'bg-emerald-50 group-hover:bg-emerald-100'
-                      : 'bg-amber-50 group-hover:bg-amber-100'
-                  }`}>
-                    <FolderOpen className={`h-4 w-4 ${project.status === 'paid' ? 'text-emerald-600' : 'text-amber-500'}`} />
+                  <div className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl transition-colors ${statusMeta.iconWrapClassName}`}>
+                    <FolderOpen className={`h-4 w-4 ${statusMeta.iconClassName}`} />
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold text-foreground transition-colors group-hover:text-primary">
@@ -357,24 +356,17 @@ export default function DashboardPage() {
                     </p>
                   </div>
                   <div className="flex-shrink-0 text-right">
-                    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-                      project.status === 'paid'
-                        ? 'bg-emerald-50 text-emerald-700'
-                        : 'bg-amber-50 text-amber-700'
-                    }`}>
-                      {project.status === 'paid'
-                        ? <><CheckCircle2 className="h-3 w-3" /> Đã TT</>
-                        : <><Clock className="h-3 w-3" /> Chờ TT</>}
+                    <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold ${statusMeta.badgeClassName}`}>
+                      <ProjectStatusIcon status={project.status} className="h-3 w-3" /> {statusMeta.shortLabel}
                     </span>
-                    {project.paidAmount != null && (
-                      <p className="mt-0.5 text-xs font-semibold text-emerald-700">
-                        {formatCurrency(project.paidAmount)}
-                      </p>
-                    )}
+                    <p className={`mt-0.5 text-xs font-semibold ${project.paidAmount != null ? 'text-emerald-700' : project.status === 'cancelled' ? 'text-rose-700' : 'text-muted-foreground'}`}>
+                      {project.paidAmount != null ? formatCurrency(project.paidAmount) : statusMeta.amountFallbackLabel}
+                    </p>
                   </div>
                   <ChevronRight className="h-4 w-4 flex-shrink-0 text-muted-foreground/30 transition-transform group-hover:translate-x-0.5" />
                 </Link>
-              ))}
+                )
+              })}
             </div>
           ) : (
             <div className="p-10 text-center">

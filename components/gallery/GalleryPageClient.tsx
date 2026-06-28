@@ -5,7 +5,6 @@ import {
   AlertTriangle,
   Camera,
   CheckCircle2,
-  Clock,
   Download,
   ImageIcon,
   Shield,
@@ -13,6 +12,8 @@ import {
   X,
 } from "lucide-react";
 import type { Project } from "@/lib/mock-data";
+import { getProjectStatusMeta, isProjectCancelled } from "@/lib/project-status";
+import { ProjectStatusIcon } from "@/lib/project-status-icons";
 import { maskPhone } from "@/lib/utils";
 import PhotoGrid from "@/components/gallery/PhotoGrid";
 import { subscribeToProjectShareRealtime } from "@/lib/project-share-realtime";
@@ -26,6 +27,8 @@ export default function GalleryPageClient({
   const [justUnlocked, setJustUnlocked] = useState(false);
   const [showThankYouCard, setShowThankYouCard] = useState(false);
   const isPaid = project.status === "paid";
+  const isCancelled = isProjectCancelled(project.status);
+  const statusMeta = getProjectStatusMeta(project.status);
   const thankYouStorageKey = `gallery-thank-you-seen:${initialProject.shareToken}`;
 
   const openThankYouCard = useCallback((unlockedNow = false) => {
@@ -144,17 +147,10 @@ export default function GalleryPageClient({
               <Camera className="h-5 w-5 text-white" />
             </div>
 
-            {isPaid ? (
-              <span className="gallery-badge gallery-badge-paid">
-                <CheckCircle2 className="h-3.5 w-3.5" />
-                Đã thanh toán
-              </span>
-            ) : (
-              <span className="gallery-badge gallery-badge-pending">
-                <Clock className="h-3.5 w-3.5" />
-                Chờ thanh toán
-              </span>
-            )}
+            <span className={isPaid ? "gallery-badge gallery-badge-paid" : "gallery-badge gallery-badge-pending"}>
+              <ProjectStatusIcon status={project.status} className="h-3.5 w-3.5" />
+              {statusMeta.label}
+            </span>
           </div>
 
           {/* Project name & client */}
@@ -178,8 +174,8 @@ export default function GalleryPageClient({
               <span className="opacity-75">ảnh</span>
             </div>
             <div className={`gallery-stat-pill ${isPaid ? "gallery-stat-pill-green" : "gallery-stat-pill-amber"}`}>
-              <Shield className="h-3.5 w-3.5 opacity-80" />
-              <span>{isPaid ? "Watermark TẮT" : "Watermark BẬT"}</span>
+                <Shield className="h-3.5 w-3.5 opacity-80" />
+              <span>{isPaid ? "Watermark TẮT" : isCancelled ? "Project đã hủy" : "Watermark BẬT"}</span>
             </div>
             <div className={`gallery-stat-pill ${isPaid ? "gallery-stat-pill-green" : ""}`}>
               <Download className="h-3.5 w-3.5 opacity-80" />
@@ -200,14 +196,16 @@ export default function GalleryPageClient({
               </div>
               <div>
                 <p className="text-sm font-bold text-amber-800 dark:text-amber-300">
-                  Ảnh xem thử — Chưa thanh toán
+                  {isCancelled ? "Project đã hủy" : "Ảnh xem thử — Chưa thanh toán"}
                 </p>
                 <ul className="mt-2 space-y-1">
                   {[
                     "Chỉ hiển thị ảnh preview chất lượng thấp (40%)",
                     "Watermark bảo vệ hiển thị trên tất cả ảnh",
                     "Không thể tải hoặc lưu ảnh gốc",
-                    "Liên hệ nhiếp ảnh gia sau khi thanh toán để nhận ảnh gốc",
+                    isCancelled
+                      ? "Project này đã được đánh dấu hủy nên gallery chỉ còn ở chế độ xem thử"
+                      : "Liên hệ nhiếp ảnh gia sau khi thanh toán để nhận ảnh gốc",
                   ].map((text) => (
                     <li key={text} className="flex items-start gap-2 text-xs text-amber-700/80 dark:text-amber-400/80">
                       <span className="mt-0.5 h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" />
@@ -234,7 +232,9 @@ export default function GalleryPageClient({
             </div>
             {!isPaid && (
               <p className="text-xs text-muted-foreground">
-                Ảnh xem thử có chất lượng thấp. Thanh toán để nhận bộ ảnh chất lượng gốc.
+                {isCancelled
+                  ? "Project đã hủy nên gallery vẫn ở chế độ xem thử."
+                  : "Ảnh xem thử có chất lượng thấp. Thanh toán để nhận bộ ảnh chất lượng gốc."}
               </p>
             )}
           </div>

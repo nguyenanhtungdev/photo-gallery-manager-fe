@@ -9,6 +9,7 @@ export type AuthUser = {
   email: string;
   username: string;
   role: "admin" | "user";
+  avatarUrl?: string | null;
   imageResizeWidth?: ImageResizeSetting;
   createdAt: string;
   updatedAt: string;
@@ -66,6 +67,14 @@ type ConfirmForgotPasswordPayload = {
 };
 
 type AuthRequestPayload = Record<string, unknown>;
+
+export type PresignedUpload = {
+  key: string;
+  uploadUrl: string;
+  method: string;
+  contentType: string;
+  expiresIn: number;
+};
 
 const STORAGE_KEY = "photo-gallery-admin-session";
 const DEVICE_KEY = "photo-gallery-admin-device-id";
@@ -177,10 +186,15 @@ export async function fetchCurrentUser(accessToken: string) {
     throw new Error(getErrorMessage(data, "Phiên đăng nhập đã hết hạn"));
   }
 
-  return data.user as AuthUser;
+  const user = data.user as AuthUser;
+  syncStoredUser(user);
+  return user;
 }
 
-export async function updateUserSettings(payload: { imageResizeWidth?: ImageResizeSetting }) {
+export async function updateUserSettings(payload: {
+  imageResizeWidth?: ImageResizeSetting;
+  avatarKey?: string | null;
+}) {
   const response = await apiFetch("/auth/settings", {
     method: "PATCH",
     body: JSON.stringify(payload),
@@ -192,15 +206,53 @@ export async function updateUserSettings(payload: { imageResizeWidth?: ImageResi
   }
 
   const user = data.user as AuthUser;
-  const session = getStoredSession();
-  if (session) {
-    saveSession({
-      ...session,
-      user,
-    });
-  }
-
+  syncStoredUser(user);
   return user;
+}
+
+export async function createAvatarUploadUrl(payload: {
+  fileName: string;
+  contentType: string;
+  fileSize: number;
+}) {
+  return request<PresignedUpload>("/auth/avatar/presign-put", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function uploadFileToPresignedUrl(
+  uploadUrl: string,
+  file: File,
+  onProgress?: (progress: number) => void,
+) {
+  await new Promise<void>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", uploadUrl, true);
+    xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
+
+    xhr.upload.onprogress = (event) => {
+      if (!onProgress || !event.lengthComputable) {
+        return;
+      }
+
+      const progress = Math.min(100, Math.round((event.loaded / event.total) * 100));
+      onProgress(progress);
+    };
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        onProgress?.(100);
+        resolve();
+        return;
+      }
+
+      reject(new Error(`Upload failed with status ${xhr.status}`));
+    };
+
+    xhr.onerror = () => reject(new Error("Upload failed due to network error"));
+    xhr.send(file);
+  });
 }
 
 export async function apiFetch(path: string, init: RequestInit = {}) {
@@ -210,6 +262,18 @@ export async function apiFetch(path: string, init: RequestInit = {}) {
   }
 
   return requestWithSession(path, init, session, true);
+}
+
+function syncStoredUser(user: AuthUser) {
+  const session = getStoredSession();
+  if (!session) {
+    return;
+  }
+
+  saveSession({
+    ...session,
+    user,
+  });
 }
 
 async function requestAuth<T>(path: string, payload: AuthRequestPayload) {
@@ -241,6 +305,22 @@ async function requestAuthedAuth<T>(path: string, payload: AuthRequestPayload) {
   const data = await readJson(response);
   if (!response.ok) {
     throw new Error(getErrorMessage(data, "Không thể kết nối máy chủ"));
+  }
+
+  return data as T;
+}
+
+async function request<T>(path: string, init: RequestInit = {}) {
+  const response = await apiFetch(path, init);
+
+  const data = await readJson(response);
+  if (!response.ok) {
+    throw new Error(
+      getErrorMessage(
+        data,
+        response.status === 401 ? "Phiên đăng nhập đã hết hạn" : "Không thể kết nối máy chủ",
+      ),
+    );
   }
 
   return data as T;

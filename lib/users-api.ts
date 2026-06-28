@@ -15,6 +15,7 @@ export type AdminUser = {
     projectCount: number
     paidProjectCount: number
     waitingProjectCount: number
+    cancelledProjectCount: number
     totalPhotos: number
     totalViewSessions: number
     totalPaidAmount: number

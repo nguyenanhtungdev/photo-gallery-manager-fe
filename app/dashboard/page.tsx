@@ -2,7 +2,9 @@
 
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
-import { ArrowRight, CheckCircle2, Clock, FolderOpen, ImageIcon, ReceiptText, RefreshCcw } from 'lucide-react'
+import { ArrowRight, Ban, CheckCircle2, Clock, FolderOpen, ImageIcon, ReceiptText, RefreshCcw } from 'lucide-react'
+import { getProjectStatusMeta } from '@/lib/project-status'
+import { ProjectStatusIcon } from '@/lib/project-status-icons'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import {
   getUserDashboardOverview,
@@ -13,10 +15,12 @@ const EMPTY_SUMMARY = {
   totalProjects: 0,
   paidProjects: 0,
   waitingProjects: 0,
+  cancelledProjects: 0,
   totalPhotos: 0,
   totalViewSessions: 0,
   totalPaidAmount: 0,
   paidPercentage: 0,
+  cancellationRate: 0,
   averagePhotosPerProject: 0,
 }
 
@@ -57,6 +61,9 @@ export default function UserDashboardPage() {
   }, [])
 
   const summary = dashboard?.summary ?? EMPTY_SUMMARY
+  const cancellationRateLabel = Number.isFinite(dashboard?.summary?.cancellationRate)
+    ? `${dashboard?.summary?.cancellationRate}%`
+    : 'NA'
 
   const stats = [
     {
@@ -77,6 +84,19 @@ export default function UserDashboardPage() {
       value: summary.waitingProjects,
       icon: Clock,
       gradient: 'from-amber-500 to-orange-500',
+    },
+    {
+      label: 'Đã hủy',
+      value: summary.cancelledProjects,
+      icon: Ban,
+      gradient: 'from-rose-500 to-red-500',
+    },
+    {
+      label: 'Tỷ lệ hủy',
+      value: cancellationRateLabel,
+      meta: `${summary.cancelledProjects} hủy / ${summary.paidProjects} thanh toán`,
+      icon: Ban,
+      gradient: 'from-fuchsia-500 to-pink-500',
     },
     {
       label: 'Tổng doanh thu',
@@ -123,7 +143,7 @@ export default function UserDashboardPage() {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
             {stats.map(({ label, value, meta, icon: Icon, gradient }) => (
               <div
                 key={label}
@@ -144,51 +164,18 @@ export default function UserDashboardPage() {
             ))}
           </div>
 
-          <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1.1fr_0.9fr]">
-            <div className="rounded-2xl border border-border bg-white p-4 shadow-sm">
-              <div className="mb-1.5 flex items-center justify-between">
-                <p className="text-sm font-semibold text-foreground">Tỉ lệ project đã thanh toán</p>
-                <span className="text-sm font-bold text-primary">{summary.paidPercentage}%</span>
-              </div>
-              <div className="h-2.5 w-full overflow-hidden rounded-full bg-secondary">
-                <div
-                  className="hero-gradient h-2.5 rounded-full transition-all duration-700"
-                  style={{ width: `${summary.paidPercentage}%` }}
-                />
-              </div>
-              <div className="mt-2 flex justify-between text-xs">
-                <span className="flex items-center gap-1 font-medium text-emerald-600">
-                  <CheckCircle2 className="h-3 w-3" /> {summary.paidProjects} đã thanh toán
-                </span>
-                <span className="flex items-center gap-1 font-medium text-amber-600">
-                  <Clock className="h-3 w-3" /> {summary.waitingProjects} chờ thanh toán
-                </span>
-              </div>
-              <div className="mt-4 grid grid-cols-2 gap-3">
-                <div className="rounded-2xl bg-secondary/50 p-3">
-                  <p className="text-xs text-muted-foreground">Lượt xem gallery</p>
-                  <p className="mt-1 text-2xl font-bold text-foreground">{summary.totalViewSessions}</p>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {secondaryStats.map(({ label, value, tone, icon: Icon }) => (
+              <div key={label} className={`flex items-center gap-3 rounded-2xl border p-4 shadow-sm ${tone}`}>
+                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-white/80">
+                  <Icon className="h-5 w-5" />
                 </div>
-                <div className="rounded-2xl bg-secondary/50 p-3">
-                  <p className="text-xs text-muted-foreground">Ảnh / project</p>
-                  <p className="mt-1 text-2xl font-bold text-foreground">{summary.averagePhotosPerProject}</p>
+                <div className="min-w-0">
+                  <p className="truncate text-lg font-bold">{value}</p>
+                  <p className="text-xs opacity-80">{label}</p>
                 </div>
               </div>
-            </div>
-
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1">
-              {secondaryStats.map(({ label, value, tone, icon: Icon }) => (
-                <div key={label} className={`flex items-center gap-3 rounded-2xl border p-4 shadow-sm ${tone}`}>
-                  <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-white/80">
-                    <Icon className="h-5 w-5" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="truncate text-lg font-bold">{value}</p>
-                    <p className="text-xs opacity-80">{label}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
+            ))}
           </div>
 
           <div className="overflow-hidden rounded-2xl border border-border bg-white shadow-sm">
@@ -204,7 +191,10 @@ export default function UserDashboardPage() {
 
             {dashboard?.recentProjects.length ? (
               <div className="divide-y divide-border/60">
-                {dashboard.recentProjects.map((project) => (
+                {dashboard.recentProjects.map((project) => {
+                  const statusMeta = getProjectStatusMeta(project.status)
+
+                  return (
                   <Link
                     key={project.id}
                     href={`/projects/${project.id}`}
@@ -222,20 +212,18 @@ export default function UserDashboardPage() {
                       </p>
                     </div>
                     <div className="text-right">
-                      <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
-                        project.status === 'paid'
-                          ? 'bg-emerald-50 text-emerald-700'
-                          : 'bg-amber-50 text-amber-700'
-                      }`}>
-                        {project.status === 'paid' ? 'Đã TT' : 'Chờ TT'}
+                      <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold ${statusMeta.badgeClassName}`}>
+                        <ProjectStatusIcon status={project.status} className="h-3 w-3" />
+                        {statusMeta.shortLabel}
                       </span>
                       <p className="mt-1 text-[11px] text-muted-foreground">
-                        {project.paidAmount != null ? formatCurrency(project.paidAmount) : 'Chưa có'}
+                        {project.paidAmount != null ? formatCurrency(project.paidAmount) : statusMeta.amountFallbackLabel}
                       </p>
                     </div>
                     <ArrowRight className="h-4 w-4 flex-shrink-0 text-muted-foreground/40 transition-transform group-hover:translate-x-0.5" />
                   </Link>
-                ))}
+                  )
+                })}
               </div>
             ) : (
               <div className="p-10 text-center">

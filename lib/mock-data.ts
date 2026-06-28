@@ -1,4 +1,4 @@
-export type ProjectStatus = 'waiting_payment' | 'paid'
+export type ProjectStatus = 'waiting_payment' | 'paid' | 'cancelled'
 
 export interface Photo {
   id: string
@@ -87,7 +87,7 @@ export const MOCK_PROJECTS: Project[] = [
     clientName: 'Phạm Văn Minh',
     clientPhone: '0934567890',
     shareToken: 'share-token-ghi789',
-    status: 'waiting_payment',
+    status: 'cancelled',
     notes: 'Chụp ảnh gia đình cuối tuần. Gửi link xem thử.',
     createdAt: '2026-06-17T09:00:00Z',
     photos: Array.from({ length: 10 }, (_, i) => makePicsumPhoto('proj-003', 50, i)),

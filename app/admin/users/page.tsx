@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
+  Ban,
   CheckCircle2, ChevronLeft, ChevronRight, Clock, FolderOpen, Search,
   Shield, User, Users,
 } from 'lucide-react'
@@ -136,6 +137,7 @@ export default function UsersPage() {
 
         accumulator.projects += user.projectStats.projectCount
         accumulator.paidProjects += user.projectStats.paidProjectCount
+        accumulator.cancelledProjects += user.projectStats.cancelledProjectCount
         return accumulator
       },
       {
@@ -143,6 +145,7 @@ export default function UsersPage() {
         users: 0,
         projects: 0,
         paidProjects: 0,
+        cancelledProjects: 0,
       },
     )
   }, [users])
@@ -177,7 +180,7 @@ export default function UsersPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
         <div className="rounded-2xl border border-border bg-white p-4 shadow-sm">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50">
             <Users className="h-5 w-5 text-blue-600" />
@@ -205,6 +208,13 @@ export default function UsersPage() {
           </div>
           <p className="mt-3 text-2xl font-bold text-foreground">{pageUsersSummary.paidProjects}</p>
           <p className="text-xs text-muted-foreground">Project đã thanh toán</p>
+        </div>
+        <div className="rounded-2xl border border-border bg-white p-4 shadow-sm">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-50">
+            <Ban className="h-5 w-5 text-rose-600" />
+          </div>
+          <p className="mt-3 text-2xl font-bold text-foreground">{pageUsersSummary.cancelledProjects}</p>
+          <p className="text-xs text-muted-foreground">Project đã hủy</p>
         </div>
       </div>
 
@@ -304,6 +314,9 @@ export default function UsersPage() {
                       <p className="mt-1 text-xs text-amber-700">
                         {user.projectStats.waitingProjectCount} chờ thanh toán
                       </p>
+                      <p className="mt-1 text-xs text-rose-700">
+                        {user.projectStats.cancelledProjectCount} đã hủy
+                      </p>
                       <p className="mt-1 text-xs">
                         {user.projectStats.totalPhotos} ảnh • {user.projectStats.totalViewSessions} lượt xem
                       </p>
@@ -369,6 +382,10 @@ export default function UsersPage() {
                   <p className="flex items-center gap-1.5">
                     <Clock className="h-3.5 w-3.5 text-amber-600" />
                     {user.projectStats.waitingProjectCount} project chờ thanh toán
+                  </p>
+                  <p className="flex items-center gap-1.5">
+                    <Ban className="h-3.5 w-3.5 text-rose-600" />
+                    {user.projectStats.cancelledProjectCount} project đã hủy
                   </p>
                   <p className="flex items-center gap-1.5">
                     <FolderOpen className="h-3.5 w-3.5 text-violet-600" />

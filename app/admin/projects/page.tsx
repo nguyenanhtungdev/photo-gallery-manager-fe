@@ -1,17 +1,21 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { FormEvent, MouseEvent } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { ActionConfirmModal } from '@/components/ui/action-confirm-modal'
 import type { Project, ProjectStatus } from '@/lib/mock-data'
+import { ProjectStatusIcon } from '@/lib/project-status-icons'
+import { getProjectStatusMeta, isProjectCancelled, isProjectPaid } from '@/lib/project-status'
 import { buildCurrencySuggestions, formatCurrency, formatDate, maskPhone } from '@/lib/utils'
 import {
-  FolderOpen, Plus, Search, ImageIcon, Clock,
+  FolderOpen, Plus, Search, ImageIcon,
   CheckCircle2, Copy, ExternalLink, MoreHorizontal,
   X, Check, Trash2, ChevronRight, ChevronLeft, CalendarRange,
   LayoutGrid, Columns2, Square,
+  Ban,
 } from 'lucide-react'
 import {
   createProject,
@@ -36,6 +40,7 @@ const INITIAL_STATS = {
   all: 0,
   paid: 0,
   waiting_payment: 0,
+  cancelled: 0,
 }
 
 function formatDateInputValue(date: Date) {
@@ -146,9 +151,8 @@ function StatusSelect({
           key={opt.key}
           type="button"
           onClick={() => { onChange(opt.key); setOpen(false) }}
-          className={`flex w-full items-center justify-between px-3.5 py-2.5 text-left text-xs font-semibold transition-colors hover:bg-secondary ${
-            opt.key === value ? 'text-primary bg-primary/5' : 'text-foreground'
-          }`}
+          className={`flex w-full items-center justify-between px-3.5 py-2.5 text-left text-xs font-semibold transition-colors hover:bg-secondary ${opt.key === value ? 'text-primary bg-primary/5' : 'text-foreground'
+            }`}
         >
           <span>{opt.label}</span>
           <span className="text-muted-foreground">({opt.count})</span>
@@ -163,16 +167,14 @@ function StatusSelect({
         ref={btnRef}
         type="button"
         onClick={openMenu}
-        className={`flex h-10 w-full min-w-0 items-center justify-between gap-1.5 rounded-xl border px-3 text-xs font-semibold transition-all ${
-          value !== 'all'
+        className={`flex h-10 w-full min-w-0 items-center justify-between gap-1.5 rounded-xl border px-3 text-xs font-semibold transition-all ${value !== 'all'
             ? 'border-primary/30 bg-primary/5 text-primary'
             : 'border-border text-foreground hover:border-primary/40'
-        }`}
+          }`}
       >
         <span className="truncate">{label}</span>
-        <ChevronRight className={`h-3.5 w-3.5 flex-shrink-0 transition-transform ${
-          open ? '-rotate-90' : 'rotate-90'
-        }`} />
+        <ChevronRight className={`h-3.5 w-3.5 flex-shrink-0 transition-transform ${open ? '-rotate-90' : 'rotate-90'
+          }`} />
       </button>
       {typeof document !== 'undefined' && createPortal(popup, document.body)}
     </>
@@ -180,13 +182,13 @@ function StatusSelect({
 }
 
 /* ─── DateRangePicker ────────────────────────────────────── */
-const VI_MONTHS = ['Tháng 1','Tháng 2','Tháng 3','Tháng 4','Tháng 5','Tháng 6',
-                   'Tháng 7','Tháng 8','Tháng 9','Tháng 10','Tháng 11','Tháng 12']
-const VI_DAYS   = ['CN','T2','T3','T4','T5','T6','T7']
+const VI_MONTHS = ['Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6',
+  'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12']
+const VI_DAYS = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7']
 
 function fmtDisplay(ymd: string) {
   if (!ymd) return ''
-  const [,m,d] = ymd.split('-')
+  const [, m, d] = ymd.split('-')
   return `${d}/${m}`
 }
 
@@ -197,17 +199,17 @@ function DateRangePicker({
   to: string
   onChange: (from: string, to: string) => void
 }) {
-  const [open, setOpen]       = useState(false)
-  const [picking, setPicking] = useState<'start'|'end'>('start')
-  const [hovered, setHovered] = useState<string|null>(null)
-  const [view, setView]       = useState(() => {
+  const [open, setOpen] = useState(false)
+  const [picking, setPicking] = useState<'start' | 'end'>('start')
+  const [hovered, setHovered] = useState<string | null>(null)
+  const [view, setView] = useState(() => {
     const d = from ? new Date(from + 'T00:00:00') : new Date()
     return { year: d.getFullYear(), month: d.getMonth() }
   })
   // Position of the popup
   const [pos, setPos] = useState({ top: 0, left: 0 })
-  const btnRef  = useRef<HTMLButtonElement>(null)
-  const popRef  = useRef<HTMLDivElement>(null)
+  const btnRef = useRef<HTMLButtonElement>(null)
+  const popRef = useRef<HTMLDivElement>(null)
 
   // Calculate position when opening
   function openPicker() {
@@ -259,9 +261,9 @@ function DateRangePicker({
   const cells = (() => {
     const firstDay = new Date(view.year, view.month, 1).getDay()
     const daysInMonth = new Date(view.year, view.month + 1, 0).getDate()
-    const arr: (string|null)[] = Array(firstDay).fill(null)
+    const arr: (string | null)[] = Array(firstDay).fill(null)
     for (let d = 1; d <= daysInMonth; d++) {
-      arr.push(`${view.year}-${String(view.month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`)
+      arr.push(`${view.year}-${String(view.month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`)
     }
     return arr
   })()
@@ -281,11 +283,11 @@ function DateRangePicker({
 
   function getDayState(day: string) {
     const effectiveTo = picking === 'end' && hovered ? hovered : to
-    const [lo, hi]   = from && effectiveTo && effectiveTo < from ? [effectiveTo, from] : [from, effectiveTo]
-    const isStart    = day === from
-    const isEnd      = day === effectiveTo
-    const inRange    = lo && hi && day > lo && day < hi
-    const isHovEnd   = picking === 'end' && day === hovered
+    const [lo, hi] = from && effectiveTo && effectiveTo < from ? [effectiveTo, from] : [from, effectiveTo]
+    const isStart = day === from
+    const isEnd = day === effectiveTo
+    const inRange = lo && hi && day > lo && day < hi
+    const isHovEnd = picking === 'end' && day === hovered
 
     return {
       isStart,
@@ -334,11 +336,10 @@ function DateRangePicker({
                 setHovered(null)
                 setOpen(false)
               }}
-              className={`inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-[11px] font-semibold transition-all ${
-                active
+              className={`inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-[11px] font-semibold transition-all ${active
                   ? 'border-primary/25 bg-primary text-white'
                   : 'border-border bg-secondary/40 text-foreground hover:border-primary/30 hover:text-primary'
-              }`}
+                }`}
             >
               {range.label}
               {range.label === 'Tuần này' ? (
@@ -425,11 +426,10 @@ function DateRangePicker({
       <button
         ref={btnRef}
         onClick={openPicker}
-        className={`flex h-10 w-full min-w-0 items-center justify-between gap-1.5 rounded-xl border px-3 text-sm font-semibold transition-all ${
-          from || to
+        className={`flex h-10 w-full min-w-0 items-center justify-between gap-1.5 rounded-xl border px-3 text-sm font-semibold transition-all ${from || to
             ? 'bg-accent/15 border-accent/30 text-accent'
             : 'border-border text-muted-foreground hover:border-accent/40 hover:text-accent'
-        }`}
+          }`}
       >
         <span className="flex min-w-0 items-center gap-1.5 overflow-hidden">
           <CalendarRange className="h-3.5 w-3.5 flex-shrink-0" />
@@ -447,28 +447,97 @@ function ActionMenu({
   status,
   disabled,
   onToggleStatus,
+  onCancelProject,
   onDelete,
 }: {
   shareToken: string
   status: ProjectStatus
   disabled: boolean
   onToggleStatus: () => Promise<void>
+  onCancelProject: () => Promise<void>
   onDelete: () => Promise<void>
 }) {
   const [open, setOpen] = useState(false)
   const [copied, setCopied] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
+  const [position, setPosition] = useState({ top: 0, left: 0 })
+  const buttonRef = useRef<HTMLButtonElement>(null)
+  const popupRef = useRef<HTMLDivElement>(null)
+
+  const closeMenu = useCallback(() => setOpen(false), [])
+
+  const getPopupPosition = useCallback((popupWidth = 176, popupHeight = 0) => {
+    if (!buttonRef.current) return null
+    const triggerRect = buttonRef.current.getBoundingClientRect()
+    const viewportPadding = 12
+    const offset = 8
+
+    const left = Math.min(
+      Math.max(viewportPadding, triggerRect.right - popupWidth),
+      window.innerWidth - popupWidth - viewportPadding,
+    )
+
+    const preferredTop = triggerRect.bottom + offset
+    const top = preferredTop + popupHeight <= window.innerHeight - viewportPadding
+      ? preferredTop
+      : Math.max(viewportPadding, triggerRect.top - popupHeight - offset)
+
+    return { top, left }
+  }, [])
+
+  const updatePosition = useCallback(() => {
+    const popupRect = popupRef.current?.getBoundingClientRect()
+    const nextPosition = getPopupPosition(
+      popupRect?.width ?? 176,
+      popupRect?.height ?? 0,
+    )
+    if (nextPosition) {
+      setPosition(nextPosition)
+    }
+  }, [getPopupPosition])
 
   useEffect(() => {
+    if (!open) return
+
     function handle(event: globalThis.MouseEvent) {
-      if (ref.current && !ref.current.contains(event.target as Node)) {
-        setOpen(false)
-      }
+      const target = event.target as Node
+      if (buttonRef.current?.contains(target) || popupRef.current?.contains(target)) return
+      closeMenu()
     }
 
     document.addEventListener('mousedown', handle)
     return () => document.removeEventListener('mousedown', handle)
-  }, [])
+  }, [closeMenu, open])
+
+  useLayoutEffect(() => {
+    if (!open) return
+
+    updatePosition()
+
+    function handleViewportChange() {
+      updatePosition()
+    }
+
+    window.addEventListener('resize', handleViewportChange)
+    window.addEventListener('scroll', handleViewportChange, true)
+
+    return () => {
+      window.removeEventListener('resize', handleViewportChange)
+      window.removeEventListener('scroll', handleViewportChange, true)
+    }
+  }, [open, updatePosition])
+
+  function handleToggleMenu() {
+    if (open) {
+      closeMenu()
+      return
+    }
+
+    const nextPosition = getPopupPosition()
+    if (nextPosition) {
+      setPosition(nextPosition)
+    }
+    setOpen(true)
+  }
 
   function handleCopy() {
     const url = `${window.location.origin}/gallery/${shareToken}`
@@ -476,79 +545,98 @@ function ActionMenu({
     setCopied(true)
     setTimeout(() => {
       setCopied(false)
-      setOpen(false)
+      closeMenu()
     }, 1500)
   }
 
   function handleOpenGallery() {
     window.open(`/gallery/${shareToken}`, '_blank', 'noopener,noreferrer')
-    setOpen(false)
+    closeMenu()
   }
 
-  return (
-    <div ref={ref} className="relative">
+  const popup = open ? (
+    <div
+      ref={popupRef}
+      style={{ position: 'fixed', top: position.top, left: position.left, zIndex: 9999 }}
+      className="w-44 rounded-xl border border-border bg-white py-1.5 shadow-lg shadow-black/10 animate-in fade-in duration-100"
+    >
+      {!isProjectPaid(status) ? (
+        <button
+          onClick={() => {
+            void onToggleStatus()
+            closeMenu()
+          }}
+          className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-xs font-medium transition-colors hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={disabled}
+        >
+          <CheckCircle2 className="h-3.5 w-3.5 text-green-500" /> Đã thanh toán
+        </button>
+      ) : null}
+
+      {status === 'waiting_payment' ? (
+        <button
+          onClick={() => {
+            void onCancelProject()
+            closeMenu()
+          }}
+          className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-xs font-medium text-rose-700 transition-colors hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={disabled}
+        >
+          <Ban className="h-3.5 w-3.5 text-rose-500" /> Hủy project
+        </button>
+      ) : null}
+
+      <div className="my-1 border-t border-border" />
+
       <button
-        onClick={() => setOpen((value) => !value)}
+        onClick={handleCopy}
+        className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-xs font-medium transition-colors hover:bg-secondary"
+      >
+        {copied ? (
+          <><Check className="h-3.5 w-3.5 text-green-500" /> <span className="text-green-600">Đã copy!</span></>
+        ) : (
+          <><Copy className="h-3.5 w-3.5 text-muted-foreground" /> Copy link chia sẻ</>
+        )}
+      </button>
+
+      <button
+        type="button"
+        onClick={handleOpenGallery}
+        className="flex w-full items-center gap-2.5 px-3.5 py-2 text-xs font-medium transition-colors hover:bg-secondary"
+      >
+        <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" /> Xem gallery
+      </button>
+
+      <div className="my-1 border-t border-border" />
+
+      <button
+        onClick={() => {
+          void onDelete()
+          closeMenu()
+        }}
+        className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-xs font-medium text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+        disabled={disabled}
+      >
+        <Trash2 className="h-3.5 w-3.5" /> Xóa thư mục
+      </button>
+    </div>
+  ) : null
+
+  return (
+    <>
+      <div className="relative">
+      <button
+        ref={buttonRef}
+        onClick={handleToggleMenu}
         className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-all hover:bg-secondary hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
         aria-label="Thêm hành động"
         disabled={disabled}
       >
         <MoreHorizontal className="h-4 w-4" />
       </button>
-
-      {open && (
-        <div className="absolute right-0 top-10 z-30 w-44 rounded-xl border border-border bg-white py-1.5 shadow-lg shadow-black/10 animate-in fade-in zoom-in-95 duration-100">
-          <button
-            onClick={() => {
-              void onToggleStatus()
-              setOpen(false)
-            }}
-            className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-xs font-medium transition-colors hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50"
-            disabled={disabled}
-          >
-            {status === 'paid' ? (
-              <><Clock className="h-3.5 w-3.5 text-amber-500" /> Chưa thanh toán</>
-            ) : (
-              <><CheckCircle2 className="h-3.5 w-3.5 text-green-500" /> Đã thanh toán</>
-            )}
-          </button>
-
-          <div className="my-1 border-t border-border" />
-
-          <button
-            onClick={handleCopy}
-            className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-xs font-medium transition-colors hover:bg-secondary"
-          >
-            {copied ? (
-              <><Check className="h-3.5 w-3.5 text-green-500" /> <span className="text-green-600">Đã copy!</span></>
-            ) : (
-              <><Copy className="h-3.5 w-3.5 text-muted-foreground" /> Copy link chia sẻ</>
-            )}
-          </button>
-
-          <button
-            type="button"
-            onClick={handleOpenGallery}
-            className="flex w-full items-center gap-2.5 px-3.5 py-2 text-xs font-medium transition-colors hover:bg-secondary"
-          >
-            <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" /> Xem gallery
-          </button>
-
-          <div className="my-1 border-t border-border" />
-
-          <button
-            onClick={() => {
-              void onDelete()
-              setOpen(false)
-            }}
-            className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-xs font-medium text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
-            disabled={disabled}
-          >
-            <Trash2 className="h-3.5 w-3.5" /> Xóa thư mục
-          </button>
-        </div>
-      )}
-    </div>
+      </div>
+      {typeof document !== 'undefined' && createPortal(popup, document.body)}
+    </>
   )
 }
 
@@ -561,29 +649,24 @@ function StatusBadge({
   disabled: boolean
   onClick: (event: MouseEvent) => void
 }) {
-  const interactive = status !== 'paid' && !disabled
-  const base = `inline-flex shrink-0 select-none items-center gap-1 whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px] font-semibold transition-all ${
-    interactive ? 'cursor-pointer active:scale-95' : 'cursor-default'
-  } ${disabled ? 'opacity-50' : ''}`
-
-  if (status === 'paid') {
-    return (
-      <span
-        title="Project đã thanh toán"
-        className={`${base} border-green-200 bg-green-50 text-green-700`}
-      >
-        <CheckCircle2 className="h-2.5 w-2.5" /> Đã thanh toán
-      </span>
-    )
-  }
+  const meta = getProjectStatusMeta(status)
+  const interactive = status === 'waiting_payment' && !disabled
+  const base = `inline-flex shrink-0 select-none items-center gap-1 whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px] font-semibold transition-all ${interactive ? 'cursor-pointer active:scale-95' : 'cursor-default'
+    } ${disabled ? 'opacity-50' : ''} ${meta.badgeClassName}`
 
   return (
-      <span
-        onClick={disabled ? undefined : onClick}
-        title="Nhấn để đánh dấu đã thanh toán"
-        className={`${base} border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100`}
-      >
-      <Clock className="h-2.5 w-2.5" /> Chưa thanh toán
+    <span
+      onClick={interactive ? onClick : undefined}
+      title={
+        status === 'waiting_payment'
+          ? 'Nhấn để thanh toán'
+          : status === 'cancelled'
+            ? 'Project đã được hủy'
+            : 'Project đã thanh toán'
+      }
+      className={`${base} ${interactive ? 'hover:bg-amber-100' : ''}`}
+    >
+      <ProjectStatusIcon status={status} className="h-2.5 w-2.5" /> {meta.label}
     </span>
   )
 }
@@ -724,9 +807,9 @@ function CreateProjectModal({
             >
               {submitting
                 ? <span className="flex items-center justify-center gap-2">
-                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                    Đang tạo...
-                  </span>
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                  Đang tạo...
+                </span>
                 : 'Tạo project'
               }
             </button>
@@ -777,7 +860,7 @@ function PaidAmountModal({
       <div className="relative z-10 w-full max-w-sm rounded-2xl bg-white shadow-2xl">
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
           <div>
-            <h2 className="text-base font-bold">Đánh dấu đã thanh toán</h2>
+            <h2 className="text-base font-bold">Thanh toán</h2>
             <p className="mt-0.5 text-xs text-muted-foreground">{project.name}</p>
           </div>
           <button
@@ -874,11 +957,14 @@ export default function ProjectsPage() {
   const [dateToInput, setDateToInput] = useState(defaultWeekRange.to)
   const [showCreate, setShowCreate] = useState(false)
   const [paymentDialogProject, setPaymentDialogProject] = useState<Project | null>(null)
+  const [confirmDialog, setConfirmDialog] = useState<{
+    mode: 'cancel' | 'delete'
+    project: Project
+  } | null>(null)
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [busyProjectId, setBusyProjectId] = useState<string | null>(null)
-  const [copiedProjectId, setCopiedProjectId] = useState<string | null>(null)
   const [pagination, setPagination] = useState(INITIAL_PAGINATION)
   const [stats, setStats] = useState(INITIAL_STATS)
   const [cols, setCols] = useState<1 | 2 | 3>(1)
@@ -1000,7 +1086,7 @@ export default function ProjectsPage() {
       return
     }
 
-    if (current.status === 'paid') {
+    if (current.status !== 'waiting_payment') {
       return
     }
 
@@ -1025,42 +1111,61 @@ export default function ProjectsPage() {
     }
   }
 
+  async function handleCancelStatus(projectId: string) {
+    const current = projects.find((project) => project.id === projectId)
+    if (!current || current.status !== 'waiting_payment') {
+      return
+    }
+
+    setConfirmDialog({ mode: 'cancel', project: current })
+  }
+
+  async function handleConfirmDialogAction() {
+    if (!confirmDialog) {
+      return
+    }
+
+    const { mode, project: current } = confirmDialog
+
+    try {
+      setBusyProjectId(current.id)
+
+      if (mode === 'cancel') {
+        await updateProjectStatus(current.id, 'cancelled', null, apiScope)
+      } else {
+        await deleteProject(current.id, apiScope)
+      }
+
+      setConfirmDialog(null)
+      await loadProjects({ reset: true })
+      setError(null)
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : mode === 'cancel'
+            ? 'Không thể hủy project'
+            : 'Không thể xóa project',
+      )
+    } finally {
+      setBusyProjectId(null)
+    }
+  }
+
   async function handleDelete(projectId: string) {
     const current = projects.find((project) => project.id === projectId)
     if (!current) {
       return
     }
 
-    const confirmed = window.confirm(`Xóa thư mục "${current.name}"?`)
-    if (!confirmed) {
-      return
-    }
-
-    try {
-      setBusyProjectId(projectId)
-      await deleteProject(projectId, apiScope)
-      await loadProjects({ reset: true })
-      setError(null)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Không thể xóa project')
-    } finally {
-      setBusyProjectId(null)
-    }
-  }
-
-  function handleCopyShareLink(project: Project) {
-    const url = `${window.location.origin}/gallery/${project.shareToken}`
-    navigator.clipboard.writeText(url)
-    setCopiedProjectId(project.id)
-    window.setTimeout(() => {
-      setCopiedProjectId((current) => (current === project.id ? null : current))
-    }, 1600)
+    setConfirmDialog({ mode: 'delete', project: current })
   }
 
   const statusOptions: Array<{ key: 'all' | ProjectStatus; label: string; count: number }> = [
     { key: 'all', label: 'Tất cả', count: stats.all },
     { key: 'waiting_payment', label: 'Chưa thanh toán', count: stats.waiting_payment },
     { key: 'paid', label: 'Đã thanh toán', count: stats.paid },
+    { key: 'cancelled', label: 'Đã hủy', count: stats.cancelled },
   ]
 
   return (
@@ -1074,7 +1179,7 @@ export default function ProjectsPage() {
             Projects
           </h1>
           <p className="ml-11.5 mt-1 text-sm text-muted-foreground">
-            {stats.all} projects • {stats.paid} đã thanh toán
+            {stats.all} projects • {stats.paid} đã thanh toán • {stats.cancelled} đã hủy
           </p>
         </div>
         <button
@@ -1147,9 +1252,8 @@ export default function ProjectsPage() {
                   type="button"
                   title={`${n} cột`}
                   onClick={() => setCols(n)}
-                  className={`gallery-cols-btn ${
-                    cols === n ? 'gallery-cols-btn-active' : 'gallery-cols-btn-idle'
-                  }`}
+                  className={`gallery-cols-btn ${cols === n ? 'gallery-cols-btn-active' : 'gallery-cols-btn-idle'
+                    }`}
                 >
                   {icons[n]}
                 </button>
@@ -1162,214 +1266,198 @@ export default function ProjectsPage() {
       <div className="min-h-0 flex-1 overflow-y-auto pb-20 md:pb-0">
 
         <div className={cols === 1 ? 'space-y-2.5' : `grid gap-3 ${cols === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
-        {loading && (
-          <div className="rounded-2xl border border-border bg-white p-12 text-center shadow-sm">
-            <div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-2 border-primary/20 border-t-primary" />
-            <p className="text-sm text-muted-foreground">Đang tải danh sách project...</p>
-          </div>
-        )}
-
-        {!loading && projects.length === 0 && (
-          <div className="rounded-2xl border border-border bg-white p-12 text-center shadow-sm">
-            <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-secondary">
-              <FolderOpen className="h-7 w-7 text-muted-foreground" />
+          {loading && (
+            <div className="rounded-2xl border border-border bg-white p-12 text-center shadow-sm">
+              <div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-2 border-primary/20 border-t-primary" />
+              <p className="text-sm text-muted-foreground">Đang tải danh sách project...</p>
             </div>
-            <p className="font-medium">Không tìm thấy project nào</p>
-            <p className="mt-1 text-sm text-muted-foreground">Thử thay đổi bộ lọc hoặc từ khóa</p>
-          </div>
-        )}
+          )}
 
-        {!loading && projects.map((project, idx) => {
-          const isBusy = busyProjectId === project.id
-          const isPaid = project.status === 'paid'
+          {!loading && projects.length === 0 && (
+            <div className="rounded-2xl border border-border bg-white p-12 text-center shadow-sm">
+              <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-secondary">
+                <FolderOpen className="h-7 w-7 text-muted-foreground" />
+              </div>
+              <p className="font-medium">Không tìm thấy project nào</p>
+              <p className="mt-1 text-sm text-muted-foreground">Thử thay đổi bộ lọc hoặc từ khóa</p>
+            </div>
+          )}
 
-          if (cols === 1) {
-            // ── List layout ──
+          {!loading && projects.map((project, idx) => {
+            const isBusy = busyProjectId === project.id
+            const statusMeta = getProjectStatusMeta(project.status)
+            const isCancelled = isProjectCancelled(project.status)
+
+            if (cols === 1) {
+              // ── List layout ──
+              return (
+                <Link
+                  key={project.id}
+                  href={`${projectBasePath}/${project.id}`}
+                  className="group animate-fade-in-up flex min-h-[92px] cursor-pointer items-stretch overflow-hidden rounded-2xl border border-border bg-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-md"
+                  style={{ animationDelay: `${idx * 40}ms` }}
+                >
+                  {/* Left accent bar */}
+                  <div
+                    className="w-1 flex-shrink-0"
+                    style={{
+                      background: statusMeta.accentGradient,
+                    }}
+                  />
+
+                  {/* Icon */}
+                  <div className="flex flex-shrink-0 items-center px-3.5">
+                    <div className={`flex h-9 w-9 items-center justify-center rounded-xl transition-transform duration-300 group-hover:scale-105 ${statusMeta.iconWrapClassName}`}>
+                      <FolderOpen className={`h-4.5 w-4.5 transition-colors ${statusMeta.iconClassName}`} />
+                    </div>
+                  </div>
+
+                  {/* Content — 2 rows */}
+                  <div className="min-w-0 flex-1 py-3.5 pr-2.5">
+                    {/* Row 1: name + status + menu */}
+                    <div className="flex items-center gap-2">
+                      <p className="min-w-0 flex-1 truncate text-sm font-semibold leading-tight transition-colors group-hover:text-primary">
+                        {project.name}
+                      </p>
+                      <div
+                        className="flex flex-shrink-0 items-center gap-1"
+                        onClick={(e) => e.preventDefault()}
+                      >
+                        <StatusBadge
+                          status={project.status}
+                          disabled={isBusy}
+                          onClick={(e) => { e.preventDefault(); void handleToggleStatus(project.id) }}
+                        />
+                        <ActionMenu
+                          shareToken={project.shareToken}
+                          status={project.status}
+                          disabled={isBusy}
+                          onToggleStatus={() => handleToggleStatus(project.id)}
+                          onCancelProject={() => handleCancelStatus(project.id)}
+                          onDelete={() => handleDelete(project.id)}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Row 2: metadata */}
+                    <div className="mt-2 flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+                        {project.clientName && (
+                          <span className="font-semibold text-slate-700 dark:text-slate-300 truncate max-w-[120px]">{project.clientName}</span>
+                        )}
+                        {project.clientName && <span className="text-slate-300">•</span>}
+                        {project.clientPhone && (
+                          <span className="flex-shrink-0">{maskPhone(project.clientPhone)}</span>
+                        )}
+                        {project.clientPhone && <span className="text-slate-300">•</span>}
+                        <span className="flex flex-shrink-0 items-center gap-0.5">
+                          <ImageIcon className="h-3.5 w-3.5 text-slate-400" />
+                          {project.photos.length} ảnh
+                        </span>
+                        <span className="text-slate-300">•</span>
+                        <span className="truncate">{formatDate(project.createdAt)}</span>
+                        {project.paidAmount != null && (
+                          <>
+                            <span className="text-slate-300">•</span>
+                            <span className="flex-shrink-0 font-semibold text-emerald-600">
+                              {formatCurrency(project.paidAmount)}
+                            </span>
+                          </>
+                        )}
+                        {project.paidAmount == null && isCancelled ? (
+                          <>
+                            <span className="text-slate-300">•</span>
+                            <span className="flex-shrink-0 font-semibold text-rose-600">
+                              Đã hủy
+                            </span>
+                          </>
+                        ) : null}
+                    </div>
+                  </div>
+
+                  <ChevronRight className="mr-3 h-4 w-4 flex-shrink-0 self-center text-muted-foreground/30 transition-transform group-hover:translate-x-0.5" />
+                </Link>
+              )
+            }
+
+            // ── Grid layout ──
             return (
               <Link
                 key={project.id}
                 href={`${projectBasePath}/${project.id}`}
-                className="group animate-fade-in-up flex cursor-pointer items-stretch overflow-hidden rounded-2xl border border-border bg-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-md"
+                className="group animate-fade-in-up flex flex-col justify-between cursor-pointer rounded-2xl border border-border bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-primary/25 hover:shadow-lg overflow-hidden"
                 style={{ animationDelay: `${idx * 40}ms` }}
               >
-                {/* Left accent bar */}
-                <div
-                  className="w-1 flex-shrink-0"
-                  style={{
-                    background: isPaid
-                      ? 'linear-gradient(180deg, hsl(160,84%,39%), hsl(145,63%,49%))'
-                      : 'linear-gradient(180deg, hsl(38,92%,50%), hsl(43,96%,56%))',
-                  }}
-                />
-
-                {/* Icon */}
-                <div className="flex flex-shrink-0 items-center px-3.5">
-                  <div className={`flex h-9 w-9 items-center justify-center rounded-xl transition-transform duration-300 group-hover:scale-105 ${
-                    isPaid ? 'bg-emerald-50' : 'bg-amber-50'
-                  }`}>
-                    <FolderOpen className={`h-4.5 w-4.5 transition-colors ${isPaid ? 'text-emerald-600' : 'text-amber-500'}`} />
-                  </div>
-                </div>
-
-                {/* Content — 2 rows */}
-                <div className="min-w-0 flex-1 py-2.5 pr-2">
-                  {/* Row 1: name + status + menu */}
-                  <div className="flex items-center gap-2">
-                    <p className="min-w-0 flex-1 truncate text-sm font-semibold leading-tight transition-colors group-hover:text-primary">
-                      {project.name}
-                    </p>
-                    <div
-                      className="flex flex-shrink-0 items-center gap-1"
-                      onClick={(e) => e.preventDefault()}
-                    >
-                      <StatusBadge
-                        status={project.status}
-                        disabled={isBusy}
-                        onClick={(e) => { e.preventDefault(); void handleToggleStatus(project.id) }}
-                      />
+                {/* Top area with gradient bg */}
+                <div>
+                  <div
+                    className="flex items-center justify-between px-3.5 pt-3.5 pb-2.5 border-b border-slate-100/50"
+                    style={{
+                      background: statusMeta.surfaceGradient,
+                    }}
+                  >
+                    <div className={`flex h-9 w-9 items-center justify-center rounded-xl transition-transform duration-300 group-hover:scale-105 ${statusMeta.iconWrapClassName}`}>
+                      <FolderOpen className={`h-4.5 w-4.5 ${statusMeta.iconClassName}`} />
+                    </div>
+                    <div onClick={(e) => e.preventDefault()}>
                       <ActionMenu
                         shareToken={project.shareToken}
                         status={project.status}
                         disabled={isBusy}
                         onToggleStatus={() => handleToggleStatus(project.id)}
+                        onCancelProject={() => handleCancelStatus(project.id)}
                         onDelete={() => handleDelete(project.id)}
                       />
                     </div>
                   </div>
 
-                  {/* Row 2: metadata + copy link */}
-                  <div className="mt-1.5 flex items-center justify-between gap-2">
-                    <div className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
-                      {project.clientName && (
-                        <span className="font-semibold text-slate-700 dark:text-slate-300 truncate max-w-[120px]">{project.clientName}</span>
-                      )}
-                      {project.clientName && <span className="text-slate-300">•</span>}
-                      {project.clientPhone && (
-                        <span className="flex-shrink-0">{maskPhone(project.clientPhone)}</span>
-                      )}
-                      {project.clientPhone && <span className="text-slate-300">•</span>}
-                      <span className="flex flex-shrink-0 items-center gap-0.5">
-                        <ImageIcon className="h-3.5 w-3.5 text-slate-400" />
-                        {project.photos.length} ảnh
+                  {/* Body */}
+                  <div className="px-3.5 pt-3 pb-2">
+                    <p className="truncate text-sm font-semibold leading-snug transition-colors group-hover:text-primary">
+                      {project.name}
+                    </p>
+                    <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground min-w-0 gap-1.5">
+                      <span className="truncate font-semibold text-slate-700 dark:text-slate-300">
+                        {project.clientName || 'Khách vãng lai'}
                       </span>
-                      <span className="text-slate-300">•</span>
-                      <span className="truncate">{formatDate(project.createdAt)}</span>
-                      {project.paidAmount != null && (
-                        <>
-                          <span className="text-slate-300">•</span>
-                          <span className="flex-shrink-0 font-semibold text-emerald-600">
-                            {formatCurrency(project.paidAmount)}
-                          </span>
-                        </>
+                      {project.clientPhone && (
+                        <span className="flex-shrink-0 text-[11px] opacity-85">
+                          {maskPhone(project.clientPhone)}
+                        </span>
                       )}
                     </div>
-                    <button
-                      type="button"
-                      onClick={(e) => { e.preventDefault(); handleCopyShareLink(project) }}
-                      disabled={isBusy}
-                      className="flex-shrink-0 rounded-full border border-border bg-white px-2.5 py-0.5 text-[10px] font-semibold text-muted-foreground transition-all hover:border-primary/40 hover:bg-primary/5 hover:text-primary active:scale-95 disabled:opacity-50"
-                    >
-                      {copiedProjectId === project.id ? '✓ Đã copy' : 'Copy link'}
-                    </button>
+
+                    {/* Sub-meta: Date & Price */}
+                    <div className="mt-2.5 flex items-center justify-between gap-1 border-t border-slate-50 pt-2 text-[10px] text-muted-foreground">
+                      <span>{formatDate(project.createdAt)}</span>
+                      {project.paidAmount != null ? (
+                        <span className="font-semibold text-emerald-600">
+                          {formatCurrency(project.paidAmount)}
+                        </span>
+                      ) : (
+                        <span className={`font-semibold ${isCancelled ? 'text-rose-600' : 'text-amber-600'}`}>
+                          {statusMeta.amountFallbackLabel}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
 
-                <ChevronRight className="mr-3 h-4 w-4 flex-shrink-0 self-center text-muted-foreground/30 transition-transform group-hover:translate-x-0.5" />
-              </Link>
-            )
-          }
+                {/* Footer */}
+                <div className="px-3.5 pb-3.5 pt-2 border-t border-slate-100/60 flex items-center justify-between gap-2 mt-auto">
+                  <StatusBadge
+                    status={project.status}
+                    disabled={isBusy}
+                    onClick={(e) => { e.preventDefault(); void handleToggleStatus(project.id) }}
+                  />
 
-          // ── Grid layout ──
-          return (
-            <Link
-              key={project.id}
-              href={`${projectBasePath}/${project.id}`}
-              className="group animate-fade-in-up flex flex-col justify-between cursor-pointer rounded-2xl border border-border bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-primary/25 hover:shadow-lg overflow-hidden"
-              style={{ animationDelay: `${idx * 40}ms` }}
-            >
-              {/* Top area with gradient bg */}
-              <div>
-                <div
-                  className="flex items-center justify-between px-3.5 pt-3.5 pb-2.5 border-b border-slate-100/50"
-                  style={{
-                    background: isPaid
-                      ? 'linear-gradient(135deg, hsl(160,84%,98%), hsl(145,63%,96%))'
-                      : 'linear-gradient(135deg, hsl(38,92%,98%), hsl(43,96%,95%))',
-                  }}
-                >
-                  <div className={`flex h-9 w-9 items-center justify-center rounded-xl transition-transform duration-300 group-hover:scale-105 ${
-                    isPaid ? 'bg-emerald-50' : 'bg-amber-50'
-                  }`}>
-                    <FolderOpen className={`h-4.5 w-4.5 ${isPaid ? 'text-emerald-600' : 'text-amber-500'}`} />
-                  </div>
-                  <div onClick={(e) => e.preventDefault()}>
-                    <ActionMenu
-                      shareToken={project.shareToken}
-                      status={project.status}
-                      disabled={isBusy}
-                      onToggleStatus={() => handleToggleStatus(project.id)}
-                      onDelete={() => handleDelete(project.id)}
-                    />
-                  </div>
-                </div>
-
-                {/* Body */}
-                <div className="px-3.5 pt-3 pb-2">
-                  <p className="truncate text-sm font-semibold leading-snug transition-colors group-hover:text-primary">
-                    {project.name}
-                  </p>
-                  <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground min-w-0 gap-1.5">
-                    <span className="truncate font-semibold text-slate-700 dark:text-slate-300">
-                      {project.clientName || 'Khách vãng lai'}
-                    </span>
-                    {project.clientPhone && (
-                      <span className="flex-shrink-0 text-[11px] opacity-85">
-                        {maskPhone(project.clientPhone)}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Sub-meta: Date & Price */}
-                  <div className="mt-2.5 flex items-center justify-between gap-1 border-t border-slate-50 pt-2 text-[10px] text-muted-foreground">
-                    <span>{formatDate(project.createdAt)}</span>
-                    {project.paidAmount != null ? (
-                      <span className="font-semibold text-emerald-600">
-                        {formatCurrency(project.paidAmount)}
-                      </span>
-                    ) : (
-                      <span className="text-amber-600 font-semibold">Chờ thanh toán</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Footer */}
-              <div className="px-3.5 pb-3.5 pt-2 border-t border-slate-100/60 flex items-center justify-between gap-2 mt-auto">
-                <StatusBadge
-                  status={project.status}
-                  disabled={isBusy}
-                  onClick={(e) => { e.preventDefault(); void handleToggleStatus(project.id) }}
-                />
-                
-                <div className="flex items-center gap-1.5">
                   <span className="flex items-center gap-0.5 text-[11px] text-muted-foreground font-medium bg-slate-50 px-2 py-0.5 rounded-lg border border-slate-100">
                     <ImageIcon className="h-3 w-3 text-slate-400" />
                     {project.photos.length}
                   </span>
-
-                  <button
-                    type="button"
-                    onClick={(e) => { e.preventDefault(); handleCopyShareLink(project) }}
-                    disabled={isBusy}
-                    className="rounded-lg border border-border bg-white px-2 py-1 text-[10px] font-bold text-muted-foreground transition-all hover:border-primary/40 hover:bg-primary/5 hover:text-primary active:scale-95 disabled:opacity-50"
-                  >
-                    {copiedProjectId === project.id ? '✓ Coppy' : 'Copy'}
-                  </button>
                 </div>
-              </div>
-            </Link>
-          )
-        })}
+              </Link>
+            )
+          })}
         </div>
 
         {!loading && projects.length > 0 && (
@@ -1402,6 +1490,22 @@ export default function ProjectsPage() {
           onSubmit={handleConfirmPaidStatus}
         />
       )}
+
+      {confirmDialog ? (
+        <ActionConfirmModal
+          title={confirmDialog.mode === 'cancel' ? 'Hủy project' : 'Xóa thư mục'}
+          description={
+            confirmDialog.mode === 'cancel'
+              ? `Project "${confirmDialog.project.name}" sẽ được đánh dấu là khách không tiếp tục thanh toán.`
+              : `Bạn có chắc muốn xóa thư mục "${confirmDialog.project.name}" không?`
+          }
+          confirmLabel={confirmDialog.mode === 'cancel' ? 'Xác nhận hủy' : 'Xóa thư mục'}
+          tone={confirmDialog.mode === 'cancel' ? 'warning' : 'danger'}
+          confirming={busyProjectId === confirmDialog.project.id}
+          onClose={() => setConfirmDialog(null)}
+          onConfirm={handleConfirmDialogAction}
+        />
+      ) : null}
     </div>
   )
 }

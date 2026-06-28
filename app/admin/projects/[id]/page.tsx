@@ -4,6 +4,7 @@ import { use, useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
+import { ActionConfirmModal } from "@/components/ui/action-confirm-modal";
 import { getStoredSession } from "@/lib/auth";
 import {
   DEFAULT_IMAGE_RESIZE_WIDTH,
@@ -11,6 +12,12 @@ import {
   formatResizeSetting,
 } from "@/lib/image-resize";
 import type { Project } from "@/lib/mock-data";
+import { ProjectStatusIcon } from "@/lib/project-status-icons";
+import {
+  getProjectStatusMeta,
+  isProjectCancelled,
+  isProjectPaid,
+} from "@/lib/project-status";
 import {
   buildCurrencySuggestions,
   formatCurrency,
@@ -34,7 +41,6 @@ import {
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
-  Clock,
   Copy,
   ImageIcon,
   Loader2,
@@ -44,6 +50,7 @@ import {
   X,
   ZoomIn,
   Pencil,
+  Ban,
   LayoutGrid,
   Columns2,
   Square,
@@ -567,6 +574,7 @@ export default function ProjectDetailPage({
   const [copied, setCopied] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
   const [savingInfo, setSavingInfo] = useState(false);
   const [paymentInput, setPaymentInput] = useState("");
   const [savingPayment, setSavingPayment] = useState(false);
@@ -739,7 +747,7 @@ export default function ProjectDetailPage({
     const url = `${window.location.origin}/gallery/${project.shareToken}`;
     navigator.clipboard.writeText(url);
     setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    window.setTimeout(() => setCopied(false), 2000);
   }
 
   async function toggleStatus() {
@@ -773,6 +781,38 @@ export default function ProjectDetailPage({
           ? err.message
           : "Không thể cập nhật trạng thái project",
       );
+    } finally {
+      setUpdatingStatus(false);
+    }
+  }
+
+  async function handleCancelProject() {
+    if (!project || project.status !== "waiting_payment") {
+      return;
+    }
+
+    setShowCancelModal(true);
+  }
+
+  async function confirmCancelProject() {
+    if (!project || project.status !== "waiting_payment") {
+      return;
+    }
+
+    try {
+      setUpdatingStatus(true);
+      const updatedProject = await updateProjectStatus(
+        project.id,
+        "cancelled",
+        null,
+        apiScope,
+      );
+      setProject(updatedProject);
+      setShowCancelModal(false);
+      setPaymentInput("");
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Không thể hủy project");
     } finally {
       setUpdatingStatus(false);
     }
@@ -1050,7 +1090,16 @@ export default function ProjectDetailPage({
     );
   }
 
-  const isPaid = project.status === "paid";
+  const isPaid = isProjectPaid(project.status);
+  const isCancelled = isProjectCancelled(project.status);
+  const statusMeta = getProjectStatusMeta(project.status);
+  const actionButtonCount = isPaid ? 1 : 2;
+  const actionGridClassName =
+    actionButtonCount === 1
+      ? "grid-cols-1"
+      : actionButtonCount === 2
+        ? "grid-cols-2"
+        : "grid-cols-3";
   const paymentSuggestions = buildCurrencySuggestions(paymentInput);
   const visibleAccessLogs = project.accessLogs.slice(0, visibleAccessLogCount);
   const hasMoreAccessLogs = visibleAccessLogCount < project.accessLogs.length;
@@ -1093,9 +1142,7 @@ export default function ProjectDetailPage({
         <div
           className="h-1 w-full"
           style={{
-            background: isPaid
-              ? "linear-gradient(90deg, hsl(160,84%,39%), hsl(145,63%,49%))"
-              : "linear-gradient(90deg, hsl(38,92%,50%), hsl(43,96%,56%))",
+            background: statusMeta.accentGradient,
           }}
         />
 
@@ -1107,18 +1154,13 @@ export default function ProjectDetailPage({
                   {project.name}
                 </h1>
                 <span
-                  className={`inline-flex shrink-0 items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ${
-                    isPaid
-                      ? "border border-emerald-200 bg-emerald-50 text-emerald-700"
-                      : "border border-amber-200 bg-amber-50 text-amber-700"
-                  }`}
+                  className={`inline-flex shrink-0 items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold border ${statusMeta.badgeClassName}`}
                 >
-                  {isPaid ? (
-                    <CheckCircle2 className="h-3.5 w-3.5" />
-                  ) : (
-                    <Clock className="h-3.5 w-3.5" />
-                  )}
-                  {isPaid ? "Đã thanh toán" : "Chờ thanh toán"}
+                  <ProjectStatusIcon
+                    status={project.status}
+                    className="h-3.5 w-3.5"
+                  />
+                  {statusMeta.label}
                 </span>
               </div>
 
@@ -1143,7 +1185,7 @@ export default function ProjectDetailPage({
           </div>
 
           <div className="grid w-full grid-cols-2 gap-2 sm:max-w-xl">
-            <div className="grid min-h-[96px] place-content-center justify-items-center rounded-2xl bg-secondary/70 px-3 py-3 text-center">
+            <div className="grid min-h-[60px] place-content-center justify-items-center rounded-2xl bg-secondary/70 px-3 py-1.5 text-center">
               <p className="text-center text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
                 Khách hàng
               </p>
@@ -1151,7 +1193,7 @@ export default function ProjectDetailPage({
                 {project.clientName}
               </p>
             </div>
-            <div className="grid min-h-[96px] place-content-center justify-items-center rounded-2xl bg-secondary/70 px-3 py-3 text-center">
+            <div className="grid min-h-[60px] place-content-center justify-items-center rounded-2xl bg-secondary/70 px-3 py-1.5 text-center">
               <p className="text-center text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
                 Thanh toán
               </p>
@@ -1160,29 +1202,40 @@ export default function ProjectDetailPage({
               >
                 {project.paidAmount != null
                   ? formatCurrency(project.paidAmount)
-                  : "Chưa nhập số tiền"}
+                  : statusMeta.amountFallbackLabel}
               </p>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
-            {isPaid ? (
-              <div className="hidden sm:block" />
-            ) : (
+          <div className={`grid gap-2 ${actionGridClassName}`}>
+            {!isPaid ? (
               <button
                 id="btn-toggle-status"
                 onClick={() => void toggleStatus()}
                 disabled={updatingStatus}
-                className="flex items-center justify-center gap-2 rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-semibold text-green-700 transition-all hover:bg-green-100 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
+                className="flex min-h-[40px] min-w-0 items-center justify-center gap-2 rounded-2xl border border-green-200 bg-green-50 px-2.5 py-2 text-center text-sm font-semibold leading-tight text-green-700 transition-all hover:bg-green-100 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <CheckCircle2 className="h-4 w-4" />
-                {updatingStatus ? "Đang cập nhật..." : "Đánh dấu đã thanh toán"}
+                {updatingStatus ? "Đang cập nhật..." : "Thanh toán"}
               </button>
-            )}
+            ) : null}
+
+            {project.status === "waiting_payment" ? (
+              <button
+                type="button"
+                onClick={() => void handleCancelProject()}
+                disabled={updatingStatus}
+                className="flex min-h-[40px] min-w-0 items-center justify-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-2.5 py-2 text-center text-sm font-semibold leading-tight text-rose-700 transition-all hover:bg-rose-100 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <Ban className="h-4 w-4" />
+                {updatingStatus ? "Đang cập nhật..." : "Hủy project"}
+              </button>
+            ) : null}
 
             <button
+              type="button"
               onClick={copyLink}
-              className="flex shrink-0 items-center justify-center gap-1.5 rounded-2xl border border-border bg-white px-4 py-3 text-sm font-medium transition-all hover:border-primary/30 hover:bg-secondary/40 active:scale-95"
+              className="flex min-h-[44px] min-w-0 items-center justify-center gap-1.5 rounded-2xl border border-border bg-white px-2.5 py-2 text-center text-sm font-medium leading-tight transition-all hover:border-primary/30 hover:bg-secondary/40 active:scale-95"
             >
               <Copy className="h-4 w-4" />
               {copied ? "✓ Copy!" : "Copy link"}
@@ -1234,8 +1287,8 @@ export default function ProjectDetailPage({
         {showPaymentEdit && (
           <div className="border-t border-border px-4 py-4 md:px-5 space-y-3">
             <p className="text-xs text-muted-foreground">
-              Nhập số tiền rồi lưu. Nếu project đang chờ thanh toán, hệ thống sẽ
-              tự chuyển sang đã thanh toán.
+              Nhập số tiền rồi lưu. Nếu project đang chờ thanh toán hoặc đã hủy,
+              hệ thống sẽ tự chuyển sang đã thanh toán.
             </p>
             <div className="flex flex-col gap-2 sm:flex-row">
               <input
@@ -1296,17 +1349,17 @@ export default function ProjectDetailPage({
         </div>
       ) : null}
 
-      {!isPaid && (
-        <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3.5">
-          <AlertTriangle className="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-500" />
+      {isCancelled && (
+        <div className="flex items-start gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3.5">
+          <AlertTriangle className="mt-0.5 h-5 w-5 flex-shrink-0 text-rose-500" />
           <div>
-            <p className="text-sm font-semibold text-amber-800">
-              Watermark bảo vệ đang BẬT
+            <p className="text-sm font-semibold text-rose-800">
+              Project đã được hủy
             </p>
-            <p className="mt-0.5 text-xs leading-relaxed text-amber-700">
-              Khách hàng chỉ thấy ảnh preview chất lượng thấp với watermark. Bật{" "}
-              <span className="font-semibold">&quot;Đã thanh toán&quot;</span>{" "}
-              để cho phép tải ảnh gốc.
+            <p className="mt-0.5 text-xs leading-relaxed text-rose-700">
+              Khách hiện không tiếp tục thanh toán nên project đang ở trạng thái
+              hủy. Nếu thay đổi quyết định, bạn có thể khôi phục về chờ thanh
+              toán hoặc chuyển sang thanh toán.
             </p>
           </div>
         </div>
@@ -1572,6 +1625,18 @@ export default function ProjectDetailPage({
           onClose={() => setDeletePhotoTarget(null)}
           onConfirm={confirmDeletePhoto}
           submitting={removingPhotoId === deletePhotoTarget.id}
+        />
+      ) : null}
+
+      {showCancelModal && project?.status === "waiting_payment" ? (
+        <ActionConfirmModal
+          title="Hủy project"
+          description={`Project "${project.name}" sẽ được đánh dấu là khách không tiếp tục thanh toán.`}
+          confirmLabel="Xác nhận hủy"
+          tone="warning"
+          confirming={updatingStatus}
+          onClose={() => setShowCancelModal(false)}
+          onConfirm={confirmCancelProject}
         />
       ) : null}
     </div>

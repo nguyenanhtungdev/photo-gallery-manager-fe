@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Bell,
   Check,
   CheckCircle2,
-  Clock,
   Eye,
   FolderPlus,
   Loader2,
@@ -61,6 +60,7 @@ const TYPE_META: Record<
 
 export default function NotificationsPage() {
   const router = useRouter();
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [nextOffset, setNextOffset] = useState(0);
@@ -192,7 +192,11 @@ export default function NotificationsPage() {
     };
   }, []);
 
-  async function loadMoreNotifications() {
+  const loadMoreNotifications = useCallback(async () => {
+    if (loading || loadingMore || !hasMore) {
+      return;
+    }
+
     try {
       setLoadingMore(true);
 
@@ -212,7 +216,30 @@ export default function NotificationsPage() {
     } finally {
       setLoadingMore(false);
     }
-  }
+  }, [hasMore, loading, loadingMore, nextOffset]);
+
+  useEffect(() => {
+    const loadMoreNode = loadMoreRef.current;
+    if (!loadMoreNode || loading || loadingMore || !hasMore) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry?.isIntersecting) {
+          return;
+        }
+
+        void loadMoreNotifications();
+      },
+      {
+        rootMargin: "240px 0px",
+      },
+    );
+
+    observer.observe(loadMoreNode);
+    return () => observer.disconnect();
+  }, [hasMore, loading, loadingMore, loadMoreNotifications]);
 
   async function handleMarkAsRead(notificationId: string) {
     try {
@@ -285,87 +312,55 @@ export default function NotificationsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl px-4 pb-6 pt-3 md:px-6 md:py-6">
-      <section className="mt-3 md:mt-0">
-        <div className="relative overflow-hidden rounded-[28px] border border-sky-100 bg-[linear-gradient(135deg,#eff6ff_0%,#f8fbff_45%,#eefaf7_100%)] px-5 py-6 shadow-[0_18px_50px_-34px_rgba(37,99,235,0.35)] md:px-6">
-          <div className="auth-blob auth-blob-1 opacity-[0.12]" />
-          <div className="auth-blob auth-blob-2 opacity-[0.14]" />
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.95),transparent_38%),radial-gradient(circle_at_bottom_right,rgba(14,165,233,0.10),transparent_32%)]" />
-          <div
-            className="absolute inset-0 opacity-[0.42]"
-            style={{
-              backgroundImage:
-                "radial-gradient(circle at 1px 1px, rgba(37,99,235,0.08) 1px, transparent 0)",
-              backgroundSize: "18px 18px",
-            }}
-          />
-
-          <div className="relative z-10 min-w-0">
-            <div className="flex items-start gap-3">
-              <div className="hero-gradient flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl shadow-sm shadow-primary/30">
-                <Bell className="h-5 w-5 text-white" />
-              </div>
-              <div className="min-w-0">
-                <h1 className="text-[1.8rem] font-bold leading-tight tracking-[-0.03em] text-foreground md:text-3xl">
-                  Thông báo
-                </h1>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Cập nhật mới nhất về project, thanh toán và lượt xem link share.
-                </p>
-              </div>
-            </div>
-
-            {!loading ? (
-              <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-muted-foreground md:flex-nowrap">
-                <span className="inline-flex h-9 items-center gap-1.5 rounded-full border border-primary/10 bg-white/85 px-3.5 text-sm font-semibold text-primary shadow-sm backdrop-blur-sm">
-                  <span className="h-2 w-2 rounded-full bg-primary" />
-                  {unreadCount > 0 ? `${unreadCount} chưa đọc` : "Đã đọc hết"}
-                </span>
-                <span className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-white/70 bg-white/70 px-3.5 text-sm font-medium shadow-sm backdrop-blur-sm">
-                  <Bell className="h-3.5 w-3.5" />
-                  {notifications.length} thông báo
-                </span>
-                <button
-                  type="button"
-                  onClick={() => void handleMarkAllAsRead()}
-                  disabled={markingAll || unreadCount === 0}
-                  className="inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-full border border-white/80 bg-white/80 px-3.5 text-sm font-medium text-foreground shadow-sm backdrop-blur-sm transition-colors hover:border-primary/20 hover:text-primary disabled:cursor-not-allowed disabled:opacity-45 md:ml-0.5"
-                >
-                  {markingAll ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <CheckCircle2 className="h-4 w-4" />
-                  )}
-                  Đọc tất cả
-                </button>
-              </div>
-            ) : null}
-          </div>
-        </div>
-      </section>
-
+    <div className="mx-auto max-w-5xl px-4 pb-6 pt-0 md:px-6 md:pb-6 md:pt-0">
       {error ? (
         <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
           {error}
         </div>
       ) : null}
 
-      <section className="mt-7">
+      <section className="mt-2">
         <div className="mb-3 flex items-end justify-between gap-3">
-          <div>
+          {/* <div>
             <h2 className="text-lg font-bold text-foreground md:text-xl">
               Mới nhất
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
               Hiển thị theo thời gian giống luồng thông báo quen thuộc.
             </p>
-          </div>
+          </div> */}
           {!loading && unreadCount > 0 ? (
             <div className="hidden rounded-full bg-primary/8 px-3 py-1.5 text-xs font-semibold text-primary md:inline-flex">
               Có mục mới chưa đọc
             </div>
           ) : null}
         </div>
+
+        {!loading ? (
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            <span className="inline-flex h-8 items-center gap-1.5 rounded-full border border-primary/10 bg-white px-3 text-sm font-semibold text-primary shadow-sm">
+              <span className="h-2 w-2 rounded-full bg-primary" />
+              {unreadCount > 0 ? `${unreadCount} chưa đọc` : "Đã đọc hết"}
+            </span>
+            <span className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-border bg-white px-3 text-sm font-medium shadow-sm">
+              <Bell className="h-3.5 w-3.5" />
+              {notifications.length} thông báo
+            </span>
+            <button
+              type="button"
+              onClick={() => void handleMarkAllAsRead()}
+              disabled={markingAll || unreadCount === 0}
+              className="inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-full border border-border bg-white px-3 text-sm font-medium text-foreground shadow-sm transition-colors hover:border-primary/20 hover:text-primary disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              {markingAll ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <CheckCircle2 className="h-3.5 w-3.5" />
+              )}
+              Đọc tất cả
+            </button>
+          </div>
+        ) : null}
 
         {loading ? (
           <div className="flex min-h-64 items-center justify-center rounded-[28px] border border-border bg-white/90 px-6 py-16 text-sm text-muted-foreground shadow-sm">
@@ -387,7 +382,7 @@ export default function NotificationsPage() {
           </div>
         ) : (
           <div className="overflow-hidden rounded-[26px] border border-border/70 bg-white shadow-[0_18px_40px_-34px_rgba(15,23,42,0.32)]">
-            <div className="max-h-[calc(100svh-21rem)] overflow-y-auto divide-y divide-border/70 md:max-h-[calc(100svh-18rem)]">
+            <div className="divide-y divide-border/70">
               {notifications.map((notification) => (
                 <NotificationRow
                   key={notification.id}
@@ -398,27 +393,23 @@ export default function NotificationsPage() {
                   onMarkAsRead={handleMarkAsRead}
                 />
               ))}
-            </div>
 
-            {hasMore ? (
-              <div className="border-t border-border/70 bg-white px-4 py-3">
-                <div className="flex justify-center">
-                  <button
-                    type="button"
-                    onClick={() => void loadMoreNotifications()}
-                    disabled={loadingMore}
-                    className="inline-flex items-center gap-2 rounded-2xl border border-border bg-white px-4 py-2.5 text-sm font-semibold text-foreground shadow-sm transition-all hover:border-primary/20 hover:text-primary disabled:opacity-50"
-                  >
-                    {loadingMore ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Clock className="h-4 w-4" />
-                    )}
-                    {loadingMore ? "Đang tải..." : "Tải thêm thông báo"}
-                  </button>
+              {hasMore || loadingMore ? (
+                <div
+                  ref={loadMoreRef}
+                  className="flex min-h-16 items-center justify-center px-4 py-3 text-sm text-muted-foreground"
+                >
+                  {loadingMore ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Đang tải thêm thông báo...
+                    </>
+                  ) : (
+                    <span>Kéo xuống để tải thêm thông báo</span>
+                  )}
                 </div>
-              </div>
-            ) : null}
+              ) : null}
+            </div>
           </div>
         )}
       </section>

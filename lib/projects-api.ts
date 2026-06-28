@@ -54,6 +54,7 @@ export type ListProjectsResponse = {
     all: number
     paid: number
     waiting_payment: number
+    cancelled: number
   }
 }
 

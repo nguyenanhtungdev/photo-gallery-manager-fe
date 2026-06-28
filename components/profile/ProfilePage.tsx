@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   UserCircle,
@@ -16,8 +16,16 @@ import {
   ImageIcon,
   Pencil,
   X,
+  Loader2,
 } from 'lucide-react'
-import { clearSession, getStoredSession, updateUserSettings } from '@/lib/auth'
+import {
+  clearSession,
+  createAvatarUploadUrl,
+  fetchCurrentUser,
+  getStoredSession,
+  updateUserSettings,
+  uploadFileToPresignedUrl,
+} from '@/lib/auth'
 import {
   DEFAULT_IMAGE_RESIZE_WIDTH,
   IMAGE_RESIZE_OPTIONS,
@@ -148,14 +156,12 @@ function EditProfileInfoModal({
   initialName,
   initialPhone,
   email,
-  username,
   onClose,
   onSave,
 }: {
   initialName: string
   initialPhone: string
   email: string
-  username: string
   onClose: () => void
   onSave: (payload: { name: string; phone: string }) => void
 }) {
@@ -209,14 +215,10 @@ function EditProfileInfoModal({
             />
           </Field>
 
-          <div className="grid grid-cols-1 gap-3 rounded-xl bg-secondary/40 p-3 text-sm sm:grid-cols-2">
+          <div className="rounded-xl bg-secondary/40 p-3 text-sm">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Email</p>
               <p className="mt-1 truncate font-medium text-foreground">{email}</p>
-            </div>
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Tên đăng nhập</p>
-              <p className="mt-1 truncate font-medium text-foreground">{username}</p>
             </div>
           </div>
 
@@ -252,12 +254,18 @@ export function ProfilePage({
 }) {
   const router = useRouter()
   const [sessionUser] = useState(getInitialSessionUser)
+  const avatarInputRef = useRef<HTMLInputElement | null>(null)
   const [name, setName] = useState(sessionUser?.name || sessionUser?.username || '')
   const [email] = useState(sessionUser?.email || '')
   const [username] = useState(sessionUser?.username || '')
   const [phone, setPhone] = useState(DEFAULT_PHONE)
   const [role] = useState<'admin' | 'user'>(sessionUser?.role ?? 'user')
   const [joinedAt] = useState(sessionUser ? formatJoinDate(sessionUser.createdAt) : '')
+  const [avatarUrl, setAvatarUrl] = useState(sessionUser?.avatarUrl || null)
+  const [avatarUploading, setAvatarUploading] = useState(false)
+  const [avatarUploadProgress, setAvatarUploadProgress] = useState(0)
+  const [avatarError, setAvatarError] = useState<string | null>(null)
+  const [avatarSaved, setAvatarSaved] = useState(false)
   const [infoSaved, setInfoSaved] = useState(false)
   const [showEditInfoModal, setShowEditInfoModal] = useState(false)
   const [settingsSaved, setSettingsSaved] = useState(false)
@@ -276,6 +284,34 @@ export function ProfilePage({
       router.replace(loginPath)
     }
   }, [loginPath, router, sessionUser])
+
+  useEffect(() => {
+    let active = true
+    const session = getStoredSession()
+    if (!session?.accessToken) {
+      return
+    }
+
+    async function refreshProfile() {
+      try {
+        const user = await fetchCurrentUser(session.accessToken)
+        if (!active) {
+          return
+        }
+
+        setAvatarUrl(user.avatarUrl ?? null)
+        setSettingsError(null)
+      } catch {
+        // Keep the locally stored session data if the refresh fails.
+      }
+    }
+
+    void refreshProfile()
+
+    return () => {
+      active = false
+    }
+  }, [])
 
   function handleSaveInfo(payload: { name: string; phone: string }) {
     setName(payload.name || username)
@@ -314,6 +350,52 @@ export function ProfilePage({
     await handleSaveImageSettings(draftImageResizeWidth)
   }
 
+  async function handleAvatarChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    if (!file) {
+      return
+    }
+
+    try {
+      setAvatarError(null)
+      setAvatarSaved(false)
+      setAvatarUploading(true)
+      setAvatarUploadProgress(0)
+
+      if (!file.type.startsWith('image/')) {
+        throw new Error('Chỉ hỗ trợ file ảnh')
+      }
+
+      if (file.size > 30 * 1024 * 1024) {
+        throw new Error('Dung lượng ảnh tối đa 30MB')
+      }
+
+      const presign = await createAvatarUploadUrl({
+        fileName: file.name,
+        contentType: file.type || 'image/jpeg',
+        fileSize: file.size,
+      })
+
+      await uploadFileToPresignedUrl(presign.uploadUrl, file, (progress) => {
+        setAvatarUploadProgress(progress)
+      })
+
+      const user = await updateUserSettings({
+        avatarKey: presign.key,
+      })
+
+      setAvatarUrl(user.avatarUrl ?? null)
+      setAvatarSaved(true)
+      setTimeout(() => setAvatarSaved(false), 2500)
+    } catch (error) {
+      setAvatarError(error instanceof Error ? error.message : 'Không thể cập nhật ảnh đại diện')
+    } finally {
+      setAvatarUploading(false)
+      setAvatarUploadProgress(0)
+      event.target.value = ''
+    }
+  }
+
   const initials = (name || username || 'AD')
     .split(' ')
     .filter(Boolean)
@@ -337,15 +419,45 @@ export function ProfilePage({
       <div className="rounded-2xl border border-border bg-white p-4 shadow-sm">
         <div className="flex items-center gap-4">
           <div className="relative shrink-0">
-            <div className="hero-gradient flex h-14 w-14 items-center justify-center rounded-2xl shadow-md">
-              <span className="text-xl font-bold text-white">{initials}</span>
+            <input
+              ref={avatarInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              className="hidden"
+              onChange={(event) => void handleAvatarChange(event)}
+            />
+
+            <div className="hero-gradient relative flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl shadow-md">
+              {avatarUrl ? (
+                // Signed S3 URLs are generated at runtime, so we render them directly here.
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={avatarUrl}
+                  alt={`Ảnh đại diện của ${name || username}`}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <span className="text-xl font-bold text-white">{initials}</span>
+              )}
+
+              {avatarUploading ? (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/35">
+                  <Loader2 className="h-4 w-4 animate-spin text-white" />
+                </div>
+              ) : null}
             </div>
             <button
               type="button"
+              onClick={() => avatarInputRef.current?.click()}
+              disabled={avatarUploading}
               className="absolute -right-1 -bottom-1 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-white shadow transition-colors hover:bg-primary/90"
-              title="Đổi ảnh đại diện"
+              title={avatarUploading ? 'Đang tải ảnh đại diện' : 'Đổi ảnh đại diện'}
             >
-              <Camera className="h-3 w-3" />
+              {avatarUploading ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <Camera className="h-3 w-3" />
+              )}
             </button>
           </div>
 
@@ -358,6 +470,15 @@ export function ProfilePage({
               </span>
               <span className="text-[10px] text-muted-foreground">Từ {joinedAt || 'Vừa tạo'}</span>
             </div>
+            {avatarUploading ? (
+              <p className="mt-2 text-[11px] font-medium text-primary">
+                Đang cập nhật ảnh đại diện... {avatarUploadProgress}%
+              </p>
+            ) : avatarError ? (
+              <p className="mt-2 text-[11px] font-medium text-red-500">{avatarError}</p>
+            ) : avatarSaved ? (
+              <p className="mt-2 text-[11px] font-medium text-green-600">Đã cập nhật ảnh đại diện</p>
+            ) : null}
           </div>
         </div>
       </div>
@@ -377,7 +498,6 @@ export function ProfilePage({
           <InfoRow icon={UserCircle} label="Họ và tên" value={name || username} />
           <InfoRow icon={Phone} label="Số điện thoại" value={phone} />
           <InfoRow icon={Mail} label="Email" value={email} muted />
-          <InfoRow icon={UserCircle} label="Tên đăng nhập" value={username} muted />
         </div>
         {infoSaved ? (
           <div className="border-t border-border px-4 py-2 text-xs text-green-600">
@@ -520,7 +640,6 @@ export function ProfilePage({
           initialName={name}
           initialPhone={phone}
           email={email}
-          username={username}
           onClose={() => setShowEditInfoModal(false)}
           onSave={handleSaveInfo}
         />

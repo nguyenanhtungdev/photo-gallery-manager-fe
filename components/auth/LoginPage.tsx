@@ -112,6 +112,7 @@ export function LoginPage({
     type: "error" | "success";
     message: string;
   } | null>(null);
+  const [isRedirecting, setIsRedirecting] = useState(false);
 
   useEffect(() => {
     const session = getStoredSession();
@@ -167,13 +168,10 @@ export function LoginPage({
             : await loginUser({ username, password });
 
         saveSession(session);
-        setToast({
-          type: "success",
-          message: "Đăng nhập thành công! Đang chuyển hướng...",
-        });
+        setIsRedirecting(true);
         setTimeout(
           () => router.replace(getDefaultRouteForRole(session.user.role)),
-          800,
+          600,
         );
       } catch (error) {
         setToast({
@@ -349,12 +347,21 @@ export function LoginPage({
         @keyframes lp-particle { 0%,100%{transform:translateY(0) scale(1);opacity:.55} 40%{transform:translateY(-22px) scale(1.3);opacity:.9} 70%{transform:translateY(-8px) scale(0.7);opacity:.35} }
         @keyframes lp-fadeup { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
         @keyframes lp-shimmer { 0%{transform:translateX(-160%) skewX(-15deg)} 100%{transform:translateX(260%) skewX(-15deg)} }
+        @keyframes lp-overlay-in { from{opacity:0} to{opacity:1} }
         .lp-blob1{animation:lp-float1 8s ease-in-out infinite}
         .lp-blob2{animation:lp-float2 11s ease-in-out infinite}
         .lp-blob3{animation:lp-float3 13s ease-in-out infinite 2s}
         .lp-particle{animation:lp-particle var(--dur,6s) ease-in-out infinite var(--delay,0s)}
         .lp-shimmer{position:absolute;inset:0;background:linear-gradient(105deg,transparent 35%,rgba(255,255,255,0.13) 50%,transparent 65%);animation:lp-shimmer 3.5s ease-in-out infinite;pointer-events:none;border-radius:inherit}
+        .lp-redirect-overlay{animation:lp-overlay-in 0.3s ease-out both}
       `}</style>
+      {isRedirecting && (
+        <div className="lp-redirect-overlay fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm bg-white/60">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-12 h-12 rounded-full border-4 border-violet-200 border-t-violet-600 animate-spin" />
+          </div>
+        </div>
+      )}
       {toast && (
         <Toast
           type={toast.type}
@@ -696,29 +703,14 @@ export function LoginPage({
                 className="group mt-1 w-full rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-violet-200 transition-all duration-200 hover:from-violet-700 hover:to-indigo-700 hover:shadow-violet-300 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <span className="flex items-center justify-center gap-2">
-                  {isPending ? (
-                    <>
-                      <span className="w-4 h-4 border-2 rounded-full animate-spin border-white/40 border-t-white" />
-                      {mode === "forgot"
-                        ? forgotStep === "email"
-                          ? "Đang gửi mã..."
-                          : forgotStep === "otp"
-                            ? "Đang sang bước mật khẩu..."
-                            : "Đang đặt lại mật khẩu..."
-                        : "Đang đăng nhập..."}
-                    </>
-                  ) : (
-                    <>
-                      {mode === "forgot"
-                        ? forgotStep === "email"
-                          ? "Gửi mã xác minh"
-                          : forgotStep === "otp"
-                            ? "Tiếp tục"
-                            : "Đặt lại mật khẩu"
-                        : "Đăng nhập"}
-                      <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-                    </>
-                  )}
+                  {mode === "forgot"
+                    ? forgotStep === "email"
+                      ? "Gửi mã xác minh"
+                      : forgotStep === "otp"
+                        ? "Tiếp tục"
+                        : "Đặt lại mật khẩu"
+                    : "Đăng nhập"}
+                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                 </span>
               </button>
 
