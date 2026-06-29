@@ -6,6 +6,7 @@ import { X, ChevronLeft, ChevronRight, Download, Loader2 } from 'lucide-react'
 import WatermarkCanvas from './WatermarkCanvas'
 import { Photo } from '@/lib/mock-data'
 import { downloadPhotos } from '@/lib/gallery-download'
+import type { WatermarkSettings } from '@/lib/watermark-settings'
 
 interface PhotoViewerProps {
   photos: Photo[]
@@ -13,10 +14,11 @@ interface PhotoViewerProps {
   onClose: () => void
   isPaid: boolean
   previewWidth?: number | null
+  watermarkSettings?: WatermarkSettings
 }
 
 export default function PhotoViewer({
-  photos, initialIndex, onClose, isPaid, previewWidth = 720,
+  photos, initialIndex, onClose, isPaid, previewWidth = 720, watermarkSettings,
 }: PhotoViewerProps) {
   const [current, setCurrent] = useState(initialIndex)
   const [imgRatio, setImgRatio] = useState<number | undefined>(undefined)
@@ -143,7 +145,11 @@ export default function PhotoViewer({
 
           {/* Watermark */}
           {!isPaid && (
-            <WatermarkCanvas mode="contain" imageAspectRatio={imgRatio} />
+            <WatermarkCanvas
+              mode="contain"
+              imageAspectRatio={imgRatio}
+              settings={watermarkSettings}
+            />
           )}
 
           {/* Transparent click blocker (unpaid) */}

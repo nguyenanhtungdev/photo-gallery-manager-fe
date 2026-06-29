@@ -1,3 +1,5 @@
+import type { WatermarkSettings } from './watermark-settings'
+
 export type ProjectStatus = 'waiting_payment' | 'paid' | 'cancelled'
 
 export interface Photo {
@@ -32,6 +34,7 @@ export interface Project {
   paidAmount?: number | null
   imageResizeWidth?: 120 | 360 | 480 | 720 | null
   effectiveImageResizeWidth?: 120 | 360 | 480 | 720 | null
+  effectiveWatermarkSettings?: WatermarkSettings
   notes?: string
   createdAt: string
   photos: Photo[]

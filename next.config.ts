@@ -7,6 +7,7 @@ const nextConfig: NextConfig = {
   },
   images: {
     imageSizes: [120, 360, 480, 720],
+    qualities: [60, 75],
     remotePatterns: [
       { protocol: 'https', hostname: 'picsum.photos' },
       { protocol: 'https', hostname: '**.amazonaws.com' },

@@ -2,6 +2,7 @@
 
 import { getApiUrl, withApiKeyHeaders } from "./api-config";
 import type { ImageResizeSetting } from "./image-resize";
+import type { WatermarkSettings } from "./watermark-settings";
 
 export type AuthUser = {
   id: string;
@@ -11,6 +12,7 @@ export type AuthUser = {
   role: "admin" | "user";
   avatarUrl?: string | null;
   imageResizeWidth?: ImageResizeSetting;
+  watermarkSettings?: WatermarkSettings;
   createdAt: string;
   updatedAt: string;
 };
@@ -194,6 +196,7 @@ export async function fetchCurrentUser(accessToken: string) {
 export async function updateUserSettings(payload: {
   imageResizeWidth?: ImageResizeSetting;
   avatarKey?: string | null;
+  watermarkSettings?: WatermarkSettings;
 }) {
   const response = await apiFetch("/auth/settings", {
     method: "PATCH",

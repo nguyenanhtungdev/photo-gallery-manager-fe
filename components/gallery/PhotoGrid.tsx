@@ -8,6 +8,7 @@ import WatermarkCanvas from './WatermarkCanvas'
 import PhotoViewer from './PhotoViewer'
 import { Check, Download, Loader2, Lock, X, ZoomIn, LayoutGrid, Columns2, Square } from 'lucide-react'
 import { downloadPhotos } from '@/lib/gallery-download'
+import type { WatermarkSettings } from '@/lib/watermark-settings'
 
 interface PhotoGridProps {
   project: Project
@@ -16,10 +17,12 @@ interface PhotoGridProps {
 function ProtectedPhotoCard({
   photo,
   previewWidth,
+  watermarkSettings,
   onClick,
 }: {
   photo: Photo
   previewWidth: number | null
+  watermarkSettings?: WatermarkSettings
   onClick: () => void
 }) {
   return (
@@ -42,7 +45,7 @@ function ProtectedPhotoCard({
       />
 
       {/* Watermark góc dưới-phải của ảnh (cover mode) */}
-      <WatermarkCanvas mode="cover" />
+      <WatermarkCanvas mode="cover" settings={watermarkSettings} />
 
       {/* Transparent blocker prevents right-click on image */}
       <div
@@ -136,6 +139,7 @@ export default function PhotoGrid({ project }: PhotoGridProps) {
   const previewWidth = project.effectiveImageResizeWidth !== undefined
     ? project.effectiveImageResizeWidth
     : project.imageResizeWidth ?? 720
+  const watermarkSettings = project.effectiveWatermarkSettings
   const visiblePhotos = project.photos.slice(0, visibleCount)
   const hasMorePhotos = visibleCount < project.photos.length
   const selectedPhotos = project.photos.filter((photo) => selectedPhotoIds.includes(photo.id))
@@ -377,6 +381,7 @@ export default function PhotoGrid({ project }: PhotoGridProps) {
               key={photo.id}
               photo={photo}
               previewWidth={previewWidth}
+              watermarkSettings={watermarkSettings}
               onClick={() => setViewerIndex(idx)}
             />
           )
@@ -403,6 +408,7 @@ export default function PhotoGrid({ project }: PhotoGridProps) {
           onClose={() => setViewerIndex(null)}
           isPaid={isPaid}
           previewWidth={previewWidth}
+          watermarkSettings={watermarkSettings}
         />
       )}
     </>

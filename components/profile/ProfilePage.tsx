@@ -14,7 +14,10 @@ import {
   ChevronRight,
   KeyRound,
   ImageIcon,
+  Move,
+  Palette,
   Pencil,
+  Type,
   X,
   Loader2,
 } from 'lucide-react'
@@ -32,8 +35,17 @@ import {
   formatResizeSetting,
   type ImageResizeSetting,
 } from '@/lib/image-resize'
+import WatermarkCanvas from '@/components/gallery/WatermarkCanvas'
+import {
+  DEFAULT_WATERMARK_SETTINGS,
+  WATERMARK_POSITION_OPTIONS,
+  WATERMARK_STYLE_OPTIONS,
+  normalizeWatermarkSettings,
+  type WatermarkSettings,
+} from '@/lib/watermark-settings'
 
 const DEFAULT_PHONE = 'Chưa cập nhật'
+const WATERMARK_SAMPLE_IMAGE_SRC = '/image/watermark-sample.png'
 
 function formatRoleLabel(role?: 'admin' | 'user') {
   return role === 'admin' ? 'Quản trị viên' : 'Người dùng'
@@ -146,6 +158,331 @@ function ImageSettingsModal({
             >
               {submitting ? 'Đang lưu...' : 'Lưu thay đổi'}
             </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function WatermarkSettingsModal({
+  currentValue,
+  draftValue,
+  onDraftChange,
+  onClose,
+  onConfirm,
+  submitting,
+}: {
+  currentValue: WatermarkSettings
+  draftValue: WatermarkSettings
+  onDraftChange: (value: WatermarkSettings) => void
+  onClose: () => void
+  onConfirm: () => Promise<void>
+  submitting: boolean
+}) {
+  const [sampleImageFailed, setSampleImageFailed] = useState(false)
+  const previewRef = useRef<HTMLDivElement | null>(null)
+  const currentWatermark = normalizeWatermarkSettings(currentValue)
+  const draftWatermark = normalizeWatermarkSettings(draftValue)
+  const selectedPosition = WATERMARK_POSITION_OPTIONS.find(
+    (option) => option.value === currentWatermark.position,
+  )
+
+  function updateDraft(patch: Partial<WatermarkSettings>) {
+    onDraftChange(normalizeWatermarkSettings({ ...draftWatermark, ...patch }))
+  }
+
+  function moveCustomWatermark(clientX: number, clientY: number) {
+    const rect = previewRef.current?.getBoundingClientRect()
+    if (!rect) return
+
+    updateDraft({
+      position: 'custom',
+      customX: (clientX - rect.left) / rect.width,
+      customY: (clientY - rect.top) / rect.height,
+    })
+  }
+
+  function handleCustomWatermarkPointerDown(event: React.PointerEvent<HTMLButtonElement>) {
+    event.preventDefault()
+    event.currentTarget.setPointerCapture(event.pointerId)
+    moveCustomWatermark(event.clientX, event.clientY)
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 pb-24 sm:p-4">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={submitting ? undefined : onClose} />
+
+      <div className="relative z-10 flex max-h-[calc(100svh-7rem)] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+        <div className="flex items-center justify-between border-b border-border px-4 py-3">
+          <div>
+            <h2 className="text-base font-bold">Cấu hình Watermark</h2>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">
+              Áp dụng cho gallery khách khi project chưa thanh toán.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={submitting}
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary transition-colors hover:bg-secondary/80 disabled:opacity-50"
+          >
+            <X className="h-4 w-4 text-muted-foreground" />
+          </button>
+        </div>
+
+        <div className="flex-1 space-y-4 overflow-y-auto p-4">
+          <div
+            ref={previewRef}
+            className="relative aspect-[4/3] overflow-hidden rounded-xl bg-[linear-gradient(135deg,#bae6fd_0%,#f8fafc_42%,#16a34a_43%,#166534_100%)]"
+          >
+            {!sampleImageFailed ? (
+              // Watermark sample is a static preview asset, not user-uploaded project media.
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={WATERMARK_SAMPLE_IMAGE_SRC}
+                alt="Ảnh mẫu watermark"
+                className="absolute inset-0 h-full w-full object-cover"
+                onError={() => setSampleImageFailed(true)}
+              />
+            ) : (
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_72%_32%,rgba(255,255,255,0.9)_0_8%,transparent_9%),linear-gradient(120deg,transparent_0_52%,rgba(15,23,42,0.22)_53%_100%)]" />
+            )}
+            <WatermarkCanvas mode="cover" settings={draftWatermark} />
+            <button
+              type="button"
+              title="Kéo vị trí Watermark"
+              onPointerDown={handleCustomWatermarkPointerDown}
+              onPointerMove={(event) => {
+                if (event.buttons !== 1 || !event.currentTarget.hasPointerCapture(event.pointerId)) {
+                  return
+                }
+                moveCustomWatermark(event.clientX, event.clientY)
+              }}
+              className={`absolute z-20 flex h-9 w-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/80 bg-black/55 text-white shadow-lg backdrop-blur-sm transition-opacity ${
+                draftWatermark.position === 'custom' ? 'opacity-100' : 'opacity-70 hover:opacity-100'
+              }`}
+              style={{
+                left: `${draftWatermark.customX * 100}%`,
+                top: `${draftWatermark.customY * 100}%`,
+                touchAction: 'none',
+              }}
+            >
+              <Move className="h-4 w-4" />
+            </button>
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Nội dung chữ
+            </label>
+            <div className="relative">
+              <Type className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <input
+                value={draftWatermark.text}
+                onChange={(event) => updateDraft({ text: event.target.value })}
+                maxLength={80}
+                disabled={submitting}
+                className="w-full rounded-xl border border-border bg-secondary/40 py-2.5 pl-9 pr-3 text-sm outline-none transition-all focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/15 disabled:opacity-60"
+              />
+            </div>
+          </div>
+
+          <div>
+            <div className="mb-1.5 flex items-center justify-between gap-3">
+              <label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Độ mờ
+              </label>
+              <span className="text-xs font-semibold text-primary">
+                {Math.round(draftWatermark.opacity * 100)}%
+              </span>
+            </div>
+            <input
+              type="range"
+              min={10}
+              max={100}
+              step={5}
+              value={Math.round(draftWatermark.opacity * 100)}
+              onChange={(event) => updateDraft({ opacity: Number(event.target.value) / 100 })}
+              disabled={submitting}
+              className="h-2 w-full accent-primary"
+            />
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-xl border border-border bg-secondary/30 px-3 py-3">
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Cỡ chữ
+                </label>
+                <span className="text-xs font-semibold text-primary">
+                  {Math.round(draftWatermark.textScale * 100)}%
+                </span>
+              </div>
+              <input
+                type="range"
+                min={50}
+                max={300}
+                step={5}
+                value={Math.round(draftWatermark.textScale * 100)}
+                onChange={(event) => updateDraft({ textScale: Number(event.target.value) / 100 })}
+                disabled={submitting}
+                className="h-2 w-full accent-primary"
+              />
+            </div>
+
+            <div className="rounded-xl border border-border bg-secondary/30 px-3 py-3">
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Góc xoay
+                </label>
+                <span className="text-xs font-semibold text-primary">
+                  {Math.round(draftWatermark.rotationDegrees)}°
+                </span>
+              </div>
+              <input
+                type="range"
+                min={-180}
+                max={180}
+                step={5}
+                value={Math.round(draftWatermark.rotationDegrees)}
+                onChange={(event) => updateDraft({ rotationDegrees: Number(event.target.value) })}
+                disabled={submitting}
+                className="h-2 w-full accent-primary"
+              />
+              <div className="mt-2 grid grid-cols-4 gap-1.5">
+                {[-90, 0, 90, 180].map((angle) => (
+                  <button
+                    key={angle}
+                    type="button"
+                    onClick={() => updateDraft({ rotationDegrees: angle })}
+                    disabled={submitting}
+                    className="rounded-lg border border-border bg-white px-2 py-1 text-[11px] font-semibold text-muted-foreground transition-colors hover:border-primary/30 hover:text-primary disabled:opacity-60"
+                  >
+                    {angle}°
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-xl border border-border bg-secondary/30 px-3 py-3">
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Text / dòng
+                </label>
+                <span className="text-xs font-semibold text-primary">
+                  {draftWatermark.textsPerLine}
+                </span>
+              </div>
+              <input
+                type="range"
+                min={1}
+                max={6}
+                step={1}
+                value={draftWatermark.textsPerLine}
+                onChange={(event) => updateDraft({ textsPerLine: Number(event.target.value) })}
+                disabled={submitting}
+                className="h-2 w-full accent-primary"
+              />
+            </div>
+
+            <div className="rounded-xl border border-border bg-secondary/30 px-3 py-3">
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Số dòng
+                </label>
+                <span className="text-xs font-semibold text-primary">
+                  {draftWatermark.lineCount}
+                </span>
+              </div>
+              <input
+                type="range"
+                min={1}
+                max={5}
+                step={1}
+                value={draftWatermark.lineCount}
+                onChange={(event) => updateDraft({ lineCount: Number(event.target.value) })}
+                disabled={submitting}
+                className="h-2 w-full accent-primary"
+              />
+            </div>
+          </div>
+
+          <div>
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Vị trí
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              {WATERMARK_POSITION_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => updateDraft({ position: option.value })}
+                  disabled={submitting}
+                  className={`rounded-xl border px-3 py-2.5 text-left transition-all disabled:opacity-60 ${
+                    draftWatermark.position === option.value
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : 'border-border bg-white hover:bg-secondary/40'
+                  }`}
+                >
+                  <span className="block text-sm font-semibold">{option.label}</span>
+                  <span className="mt-0.5 block text-[11px] leading-snug text-muted-foreground">{option.description}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Style
+            </p>
+            <div className="grid grid-cols-4 gap-2">
+              {WATERMARK_STYLE_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => updateDraft({ style: option.value })}
+                  disabled={submitting}
+                  className={`rounded-xl border px-2 py-2 text-center text-xs font-semibold transition-all disabled:opacity-60 ${
+                    draftWatermark.style === option.value
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : 'border-border bg-white hover:bg-secondary/40'
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between rounded-xl bg-secondary/60 px-3 py-2 text-xs">
+            <span className="text-muted-foreground">
+              Hiện tại: <b className="text-foreground">{selectedPosition?.label ?? 'Bốn góc'}</b>
+            </span>
+            <span className="text-primary">
+              Chọn: <b>{Math.round(draftWatermark.opacity * 100)}% · {Math.round(draftWatermark.textScale * 100)}% · {Math.round(draftWatermark.rotationDegrees)}°</b>
+            </span>
+          </div>
+        </div>
+
+        <div className="flex gap-3 border-t border-border bg-white p-4">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={submitting}
+            className="flex-1 rounded-xl border border-border py-3 text-sm font-medium transition-colors hover:bg-secondary/50 disabled:opacity-50"
+          >
+            Hủy
+          </button>
+          <button
+            type="button"
+            onClick={() => void onConfirm()}
+            disabled={submitting || isSameWatermarkSettings(draftWatermark, currentWatermark)}
+            className="flex-1 rounded-xl bg-primary py-3 text-sm font-semibold text-white shadow-sm shadow-primary/20 transition-all hover:bg-primary/90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {submitting ? 'Đang lưu...' : 'Lưu thay đổi'}
+          </button>
         </div>
       </div>
     </div>
@@ -276,6 +613,11 @@ export function ProfilePage({
   )
   const [draftImageResizeWidth, setDraftImageResizeWidth] = useState<ImageResizeSetting>(imageResizeWidth)
   const [showImageSettingsModal, setShowImageSettingsModal] = useState(false)
+  const [watermarkSettings, setWatermarkSettings] = useState<WatermarkSettings>(
+    normalizeWatermarkSettings(sessionUser?.watermarkSettings ?? DEFAULT_WATERMARK_SETTINGS),
+  )
+  const [draftWatermarkSettings, setDraftWatermarkSettings] = useState<WatermarkSettings>(watermarkSettings)
+  const [showWatermarkSettingsModal, setShowWatermarkSettingsModal] = useState(false)
   const [notifyEmail, setNotifyEmail] = useState(true)
   const [notifyView, setNotifyView] = useState(true)
 
@@ -301,6 +643,9 @@ export function ProfilePage({
         }
 
         setAvatarUrl(user.avatarUrl ?? null)
+        const nextWatermarkSettings = normalizeWatermarkSettings(user.watermarkSettings)
+        setWatermarkSettings(nextWatermarkSettings)
+        setDraftWatermarkSettings(nextWatermarkSettings)
         setSettingsError(null)
       } catch {
         // Keep the locally stored session data if the refresh fails.
@@ -349,6 +694,30 @@ export function ProfilePage({
 
   async function confirmImageSettings() {
     await handleSaveImageSettings(draftImageResizeWidth)
+  }
+
+  async function handleSaveWatermarkSettings(value: WatermarkSettings) {
+    setSavingSettings(true)
+    setSettingsError(null)
+    setSettingsSaved(false)
+
+    try {
+      const user = await updateUserSettings({ watermarkSettings: normalizeWatermarkSettings(value) })
+      const savedValue = normalizeWatermarkSettings(user.watermarkSettings)
+      setWatermarkSettings(savedValue)
+      setDraftWatermarkSettings(savedValue)
+      setShowWatermarkSettingsModal(false)
+      setSettingsSaved(true)
+      setTimeout(() => setSettingsSaved(false), 2500)
+    } catch (err) {
+      setSettingsError(err instanceof Error ? err.message : 'Không thể lưu cấu hình Watermark')
+    } finally {
+      setSavingSettings(false)
+    }
+  }
+
+  async function confirmWatermarkSettings() {
+    await handleSaveWatermarkSettings(draftWatermarkSettings)
   }
 
   async function handleAvatarChange(event: React.ChangeEvent<HTMLInputElement>) {
@@ -569,6 +938,32 @@ export function ProfilePage({
             <ChevronRight className="h-4 w-4 text-muted-foreground" />
           </button>
 
+          <button
+            type="button"
+            onClick={() => {
+              setDraftWatermarkSettings(watermarkSettings)
+              setSettingsError(null)
+              setSettingsSaved(false)
+              setShowWatermarkSettingsModal(true)
+            }}
+            className="flex w-full items-center justify-between gap-3 rounded-xl border border-border bg-secondary/40 px-4 py-3 text-left transition-all hover:border-primary/40 hover:bg-white hover:ring-2 hover:ring-primary/10"
+          >
+            <span className="flex min-w-0 items-center gap-3">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white">
+                <Palette className="h-4 w-4 text-primary" />
+              </span>
+              <span className="min-w-0">
+                <span className="block truncate text-sm font-semibold text-foreground">
+                  Watermark khi share khách
+                </span>
+                <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                  {watermarkSettings.text} · {Math.round(watermarkSettings.opacity * 100)}% · {Math.round(watermarkSettings.textScale * 100)}% · {Math.round(watermarkSettings.rotationDegrees)}°
+                </span>
+              </span>
+            </span>
+            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+          </button>
+
           <div className="min-h-4 text-xs">
             {settingsError ? (
               <span className="text-red-500">{settingsError}</span>
@@ -632,6 +1027,17 @@ export function ProfilePage({
           onDraftChange={setDraftImageResizeWidth}
           onClose={() => setShowImageSettingsModal(false)}
           onConfirm={confirmImageSettings}
+          submitting={savingSettings}
+        />
+      ) : null}
+
+      {showWatermarkSettingsModal ? (
+        <WatermarkSettingsModal
+          currentValue={watermarkSettings}
+          draftValue={draftWatermarkSettings}
+          onDraftChange={setDraftWatermarkSettings}
+          onClose={() => setShowWatermarkSettingsModal(false)}
+          onConfirm={confirmWatermarkSettings}
           submitting={savingSettings}
         />
       ) : null}
@@ -701,4 +1107,19 @@ function formatJoinDate(value: string) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return ''
   return new Intl.DateTimeFormat('vi-VN', { month: 'long', year: 'numeric' }).format(date)
+}
+
+function isSameWatermarkSettings(first: WatermarkSettings, second: WatermarkSettings) {
+  return (
+    first.text === second.text &&
+    first.position === second.position &&
+    first.style === second.style &&
+    Math.round(first.textScale * 100) === Math.round(second.textScale * 100) &&
+    Math.round(first.rotationDegrees) === Math.round(second.rotationDegrees) &&
+    first.textsPerLine === second.textsPerLine &&
+    first.lineCount === second.lineCount &&
+    Math.round(first.customX * 1000) === Math.round(second.customX * 1000) &&
+    Math.round(first.customY * 1000) === Math.round(second.customY * 1000) &&
+    Math.round(first.opacity * 100) === Math.round(second.opacity * 100)
+  )
 }
