@@ -291,10 +291,11 @@ export function ProfilePage({
     if (!session?.accessToken) {
       return
     }
+    const accessToken = session.accessToken
 
     async function refreshProfile() {
       try {
-        const user = await fetchCurrentUser(session.accessToken)
+        const user = await fetchCurrentUser(accessToken)
         if (!active) {
           return
         }
