@@ -1244,7 +1244,6 @@ export default function ProjectDetailPage({
         </div>
       </div>
 
-      {/* ── Số tiền thanh toán — ẩn mặc định, hiện khi bấm chỉnh sửa ── */}
       <div
         ref={paymentSectionRef}
         className="overflow-hidden rounded-[24px] border border-border bg-white shadow-sm"
