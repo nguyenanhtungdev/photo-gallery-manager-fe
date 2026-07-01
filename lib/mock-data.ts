@@ -26,12 +26,17 @@ export interface AccessLog {
 
 export interface Project {
   id: string
+  projectCode?: string | null
   name: string
   clientName: string
   clientPhone: string | null
   shareToken: string
   status: ProjectStatus
   paidAmount?: number | null
+  paidAt?: string | null
+  photosCleanedAt?: string | null
+  photosCleanupReason?: 'retention_expired' | null
+  isPhotoStorageExpired?: boolean
   imageResizeWidth?: 120 | 360 | 480 | 720 | null
   effectiveImageResizeWidth?: 120 | 360 | 480 | 720 | null
   effectiveWatermarkSettings?: WatermarkSettings
@@ -55,6 +60,7 @@ const makePicsumPhoto = (projectId: string, seed: number, idx: number): Photo =>
 export const MOCK_PROJECTS: Project[] = [
   {
     id: 'proj-001',
+    projectCode: 'PG-A1B2C3',
     name: 'Wedding - Anh & Linh',
     clientName: 'Nguyễn Văn Anh',
     clientPhone: '0912345678',
@@ -71,12 +77,14 @@ export const MOCK_PROJECTS: Project[] = [
   },
   {
     id: 'proj-002',
+    projectCode: 'PG-D4E5F6',
     name: 'Portrait - Chị Mai',
     clientName: 'Trần Thị Mai',
     clientPhone: '0987654321',
     shareToken: 'share-token-def456',
     status: 'paid',
     paidAmount: 3500000,
+    paidAt: '2026-06-10T14:30:00Z',
     notes: 'Chụp chân dung công ty. Đã thanh toán đủ.',
     createdAt: '2026-06-10T14:30:00Z',
     photos: Array.from({ length: 6 }, (_, i) => makePicsumPhoto('proj-002', 30, i)),
@@ -86,6 +94,7 @@ export const MOCK_PROJECTS: Project[] = [
   },
   {
     id: 'proj-003',
+    projectCode: 'PG-789ABC',
     name: 'Gia đình - Nhà anh Minh',
     clientName: 'Phạm Văn Minh',
     clientPhone: '0934567890',
@@ -100,12 +109,14 @@ export const MOCK_PROJECTS: Project[] = [
   },
   {
     id: 'proj-004',
+    projectCode: 'PG-DEF012',
     name: 'Sản phẩm - Cửa hàng Hoa',
     clientName: 'Lê Thị Hoa',
     clientPhone: '0901234567',
     shareToken: 'share-token-jkl012',
     status: 'paid',
     paidAmount: 2200000,
+    paidAt: '2026-06-05T16:00:00Z',
     createdAt: '2026-06-05T16:00:00Z',
     photos: Array.from({ length: 5 }, (_, i) => makePicsumPhoto('proj-004', 70, i)),
     accessLogs: [],

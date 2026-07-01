@@ -54,6 +54,7 @@ import {
   LayoutGrid,
   Columns2,
   Square,
+  Hash,
 } from "lucide-react";
 
 /* ─── Lightbox ─────────────────────────────────────────────── */
@@ -848,6 +849,14 @@ export default function ProjectDetailPage({
       return;
     }
 
+    if (project.status === "paid" && project.paidAmount != null) {
+      setError(
+        "Project đã thanh toán và đã có số tiền nên không thể cập nhật thanh toán.",
+      );
+      setShowPaymentEdit(false);
+      return;
+    }
+
     try {
       setSavingPayment(true);
       const paidAmount = parsePaidAmountInput(paymentInput);
@@ -876,6 +885,16 @@ export default function ProjectDetailPage({
 
   async function handlePickPhotos(event: React.ChangeEvent<HTMLInputElement>) {
     if (!project) {
+      return;
+    }
+
+    if (project.isPhotoStorageExpired) {
+      setError(
+        "Ảnh của project đã quá hạn lưu trữ và không còn trên hệ thống.",
+      );
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
       return;
     }
 
@@ -1093,6 +1112,12 @@ export default function ProjectDetailPage({
   const isPaid = isProjectPaid(project.status);
   const isCancelled = isProjectCancelled(project.status);
   const statusMeta = getProjectStatusMeta(project.status);
+  const paidDateLabel = project.paidAt ? formatDate(project.paidAt) : null;
+  const isPhotoStorageExpired = Boolean(project.isPhotoStorageExpired);
+  const photosCleanedDateLabel = project.photosCleanedAt
+    ? formatDate(project.photosCleanedAt)
+    : null;
+  const isPaymentLocked = isPaid && project.paidAmount != null;
   const actionButtonCount = isPaid ? 1 : 2;
   const actionGridClassName =
     actionButtonCount === 1
@@ -1165,6 +1190,7 @@ export default function ProjectDetailPage({
               </div>
 
               <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                {project.projectCode ? `${project.projectCode} • ` : ""}
                 {project.clientName}
                 {project.clientPhone
                   ? ` • ${maskPhone(project.clientPhone)}`
@@ -1184,7 +1210,24 @@ export default function ProjectDetailPage({
             </button>
           </div>
 
-          <div className="grid w-full grid-cols-2 gap-2 sm:max-w-xl">
+          <div
+            className={`grid w-full grid-cols-1 gap-2 ${
+              project.projectCode
+                ? "sm:max-w-2xl sm:grid-cols-3"
+                : "sm:max-w-xl sm:grid-cols-2"
+            }`}
+          >
+            {project.projectCode ? (
+              <div className="grid min-h-[60px] place-content-center justify-items-center rounded-2xl bg-secondary/70 px-3 py-1.5 text-center">
+                <p className="text-center text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                  Mã project
+                </p>
+                <p className="mt-2 inline-flex items-center gap-1 text-center text-sm font-semibold leading-tight text-foreground">
+                  <Hash className="h-3.5 w-3.5 text-muted-foreground" />
+                  {project.projectCode}
+                </p>
+              </div>
+            ) : null}
             <div className="grid min-h-[60px] place-content-center justify-items-center rounded-2xl bg-secondary/70 px-3 py-1.5 text-center">
               <p className="text-center text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
                 Khách hàng
@@ -1198,12 +1241,17 @@ export default function ProjectDetailPage({
                 Thanh toán
               </p>
               <p
-                className={`mt-2 text-center text-sm font-semibold leading-tight ${project.paidAmount != null ? "text-emerald-700" : "text-muted-foreground"}`}
+                className={`mt-2 text-center text-sm font-semibold leading-tight ${isPaid ? "text-emerald-700" : "text-muted-foreground"}`}
               >
                 {project.paidAmount != null
                   ? formatCurrency(project.paidAmount)
                   : statusMeta.amountFallbackLabel}
               </p>
+              {isPaid && paidDateLabel ? (
+                <p className="mt-1 text-center text-[11px] font-medium leading-tight text-emerald-700/80">
+                  Ngày thanh toán: {paidDateLabel}
+                </p>
+              ) : null}
             </div>
           </div>
 
@@ -1251,8 +1299,17 @@ export default function ProjectDetailPage({
         {/* Header row — luôn hiển thị */}
         <button
           type="button"
-          onClick={() => setShowPaymentEdit((v) => !v)}
-          className="flex w-full items-center justify-between px-4 py-3 md:px-5 transition-colors hover:bg-secondary/30"
+          onClick={() => {
+            if (isPaymentLocked) {
+              setShowPaymentEdit(false);
+              return;
+            }
+
+            setShowPaymentEdit((v) => !v);
+          }}
+          className={`flex w-full items-center justify-between px-4 py-3 md:px-5 transition-colors ${
+            isPaymentLocked ? "cursor-default" : "hover:bg-secondary/30"
+          }`}
         >
           <div className="flex items-center gap-3">
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-secondary">
@@ -1267,8 +1324,17 @@ export default function ProjectDetailPage({
                   {formatCurrency(project.paidAmount)}
                 </p>
               ) : (
-                <p className="text-xs text-muted-foreground">Chưa có số tiền</p>
+                <p
+                  className={`text-xs font-medium ${isPaid ? "text-emerald-600" : "text-muted-foreground"}`}
+                >
+                  {isPaid ? "Đã thanh toán" : "Chưa có số tiền"}
+                </p>
               )}
+              {isPaid && paidDateLabel ? (
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Ngày thanh toán: {paidDateLabel}
+                </p>
+              ) : null}
             </div>
           </div>
           <span
@@ -1278,57 +1344,61 @@ export default function ProjectDetailPage({
                 : "bg-secondary text-muted-foreground hover:text-foreground"
             }`}
           >
-            {showPaymentEdit ? "Đóng" : "Chỉnh sửa"}
+            {isPaymentLocked
+              ? "Đã khóa"
+              : showPaymentEdit
+                ? "Đóng"
+                : "Chỉnh sửa"}
           </span>
         </button>
 
         {/* Expandable form */}
-        {showPaymentEdit && (
-          <div className="border-t border-border px-4 py-4 md:px-5 space-y-3">
-            <p className="text-xs text-muted-foreground">
-              Nhập số tiền rồi lưu. Nếu project đang chờ thanh toán hoặc đã hủy,
-              hệ thống sẽ tự chuyển sang đã thanh toán.
-            </p>
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <input
-                type="text"
-                inputMode="numeric"
-                value={paymentInput}
-                onChange={(event) =>
-                  setPaymentInput(event.target.value.replace(/[^\d]/g, ""))
-                }
-                placeholder="Ví dụ: 3500000"
-                autoFocus
-                className="w-full rounded-xl border border-border bg-secondary/40 px-4 py-3 text-sm outline-none transition-all placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
-              />
-              <button
-                type="button"
-                onClick={() => void savePaidAmount()}
-                disabled={savingPayment}
-                className="shrink-0 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700 transition-all hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {savingPayment ? "Đang lưu..." : "Lưu số tiền"}
-              </button>
-            </div>
-            {paymentSuggestions.length > 0 ? (
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-medium text-muted-foreground">
-                  Gợi ý:
-                </span>
-                {paymentSuggestions.map((amount) => (
-                  <button
-                    key={amount}
-                    type="button"
-                    onClick={() => setPaymentInput(String(amount))}
-                    disabled={savingPayment}
-                    className="rounded-full border border-primary/20 bg-primary/5 px-3 py-1.5 text-xs font-semibold text-primary transition-all hover:border-primary/40 hover:bg-primary/10 active:scale-95 disabled:opacity-50"
-                  >
-                    {formatCurrency(amount)}
-                  </button>
-                ))}
+        {isPaymentLocked ? (
+          null
+        ) : (
+          showPaymentEdit && (
+            <div className="border-t border-border px-4 py-4 md:px-5 space-y-3">
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={paymentInput}
+                  onChange={(event) =>
+                    setPaymentInput(event.target.value.replace(/[^\d]/g, ""))
+                  }
+                  placeholder="Ví dụ: 3500000"
+                  autoFocus
+                  className="w-full rounded-xl border border-border bg-secondary/40 px-4 py-3 text-sm outline-none transition-all placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
+                />
+                <button
+                  type="button"
+                  onClick={() => void savePaidAmount()}
+                  disabled={savingPayment}
+                  className="shrink-0 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700 transition-all hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {savingPayment ? "Đang lưu..." : "Lưu số tiền"}
+                </button>
               </div>
-            ) : null}
-          </div>
+              {paymentSuggestions.length > 0 ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-medium text-muted-foreground">
+                    Gợi ý:
+                  </span>
+                  {paymentSuggestions.map((amount) => (
+                    <button
+                      key={amount}
+                      type="button"
+                      onClick={() => setPaymentInput(String(amount))}
+                      disabled={savingPayment}
+                      className="rounded-full border border-primary/20 bg-primary/5 px-3 py-1.5 text-xs font-semibold text-primary transition-all hover:border-primary/40 hover:bg-primary/10 active:scale-95 disabled:opacity-50"
+                    >
+                      {formatCurrency(amount)}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          )
         )}
       </div>
 
@@ -1370,7 +1440,11 @@ export default function ProjectDetailPage({
             <div className="min-w-0 flex-1">
               <h2 className="flex items-center gap-2 text-sm font-semibold">
                 <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10">
-                  <ImageIcon className="h-3.5 w-3.5 text-primary" />
+                  {isPhotoStorageExpired ? (
+                    <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
+                  ) : (
+                    <ImageIcon className="h-3.5 w-3.5 text-primary" />
+                  )}
                 </span>
                 Ảnh
                 <span className="ml-0.5 rounded-full bg-secondary px-2 py-0.5 text-xs text-muted-foreground">
@@ -1378,46 +1452,63 @@ export default function ProjectDetailPage({
                 </span>
               </h2>
             </div>
-            <div className="gallery-cols-toggle">
-              {([1, 2, 3] as const).map((n) => {
-                const icons = {
-                  1: <Square className="h-4 w-4" />,
-                  2: <Columns2 className="h-4 w-4" />,
-                  3: <LayoutGrid className="h-4 w-4" />,
-                };
-                return (
-                  <button
-                    key={n}
-                    type="button"
-                    title={`${n} cột`}
-                    onClick={() => setPhotoGridLayout(n)}
-                    className={`gallery-cols-btn ${
-                      photoGridLayout === n
-                        ? "gallery-cols-btn-active"
-                        : "gallery-cols-btn-idle"
-                    }`}
-                  >
-                    {icons[n]}
-                  </button>
-                );
-              })}
+            {project.photos.length > 0 ? (
+              <div className="gallery-cols-toggle">
+                {([1, 2, 3] as const).map((n) => {
+                  const icons = {
+                    1: <Square className="h-4 w-4" />,
+                    2: <Columns2 className="h-4 w-4" />,
+                    3: <LayoutGrid className="h-4 w-4" />,
+                  };
+                  return (
+                    <button
+                      key={n}
+                      type="button"
+                      title={`${n} cột`}
+                      onClick={() => setPhotoGridLayout(n)}
+                      className={`gallery-cols-btn ${
+                        photoGridLayout === n
+                          ? "gallery-cols-btn-active"
+                          : "gallery-cols-btn-idle"
+                      }`}
+                    >
+                      {icons[n]}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : null}
+          </div>
+          {isPhotoStorageExpired ? (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              <p className="font-semibold">Ảnh đã quá hạn lưu trữ</p>
+              <p className="mt-1 text-xs leading-5 text-amber-700/90">
+                Ảnh của project đã được cronjob xóa theo chính sách lưu trữ sau
+                thanh toán nên không còn lưu trữ trên hệ thống.
+                {photosCleanedDateLabel
+                  ? ` Thời điểm ghi nhận: ${photosCleanedDateLabel}.`
+                  : ""}
+              </p>
             </div>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Khách chưa thanh toán sẽ thấy ảnh preview:{" "}
-            {formatResizeSetting(effectivePreviewResizeWidth)}
-          </p>
-          <div className="flex w-full flex-col gap-2">
-            <button
-              id="btn-upload-photos"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploading}
-              className="flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-primary px-4 text-sm font-semibold text-white shadow-sm shadow-primary/30 transition-all hover:bg-primary/90 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <Upload className="h-4 w-4" />{" "}
-              {uploading ? "Đang upload..." : "Upload ảnh"}
-            </button>
-          </div>
+          ) : (
+            <>
+              <p className="text-xs text-muted-foreground">
+                Khách chưa thanh toán sẽ thấy ảnh preview:{" "}
+                {formatResizeSetting(effectivePreviewResizeWidth)}
+              </p>
+              <div className="flex w-full flex-col gap-2">
+                <button
+                  id="btn-upload-photos"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  className="flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-primary px-4 text-sm font-semibold text-white shadow-sm shadow-primary/30 transition-all hover:bg-primary/90 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <Upload className="h-4 w-4" />{" "}
+                  {uploading ? "Đang tải ảnh lên..." : "Tải ảnh lên"}
+                </button>
+              </div>
+            </>
+          )}
           <input
             ref={fileInputRef}
             type="file"
@@ -1429,7 +1520,20 @@ export default function ProjectDetailPage({
         </div>
 
         <div className="p-4 md:p-6">
-          {project.photos.length === 0 ? (
+          {isPhotoStorageExpired ? (
+            <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-amber-200 bg-amber-50/60 px-4 py-14 text-center">
+              <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
+                <AlertTriangle className="h-7 w-7" />
+              </div>
+              <p className="text-sm font-semibold text-amber-900">
+                Ảnh đã quá hạn
+              </p>
+              <p className="mt-1 max-w-md text-xs leading-5 text-amber-800/80">
+                Bộ ảnh đã bị xóa khỏi lưu trữ sau thời gian giữ ảnh đã cấu hình.
+                Project vẫn giữ trạng thái thanh toán và thông tin lịch sử.
+              </p>
+            </div>
+          ) : project.photos.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-border py-14 text-center">
               <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-secondary">
                 <ImageIcon className="h-7 w-7 text-muted-foreground" />
@@ -1438,7 +1542,7 @@ export default function ProjectDetailPage({
                 Chưa có ảnh nào
               </p>
               <p className="mt-1 text-xs text-muted-foreground/70">
-                Upload ảnh để bắt đầu
+                Tải ảnh lên để bắt đầu
               </p>
             </div>
           ) : (

@@ -39,26 +39,28 @@ function Toast({
 }) {
   const isErr = type === "error";
   return (
-    <div
-      className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 flex items-start gap-3 px-4 py-3.5 rounded-2xl shadow-xl max-w-[calc(100vw-2rem)] w-full sm:max-w-sm border animate-[fadeSlideDown_0.25s_ease-out] ${isErr ? "bg-red-50 border-red-200 text-red-700" : "bg-emerald-50 border-emerald-200 text-emerald-700"}`}
-    >
-      <span
-        className={`mt-0.5 shrink-0 ${isErr ? "text-red-500" : "text-emerald-500"}`}
+    <div className="pointer-events-none fixed inset-x-0 top-4 z-50 flex justify-center px-4">
+      <div
+        className={`pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-2xl border px-4 py-3.5 shadow-xl animate-[authToastIn_0.22s_cubic-bezier(0.16,1,0.3,1)_both] ${isErr ? "bg-red-50 border-red-200 text-red-700" : "bg-emerald-50 border-emerald-200 text-emerald-700"}`}
       >
-        {isErr ? (
-          <AlertCircle className="w-5 h-5" />
-        ) : (
-          <CheckCircle2 className="w-5 h-5" />
-        )}
-      </span>
-      <p className="flex-1 text-sm font-medium leading-snug">{message}</p>
-      <button
-        onClick={onClose}
-        className={`shrink-0 p-1 rounded-lg transition-colors ${isErr ? "hover:bg-red-100" : "hover:bg-emerald-100"}`}
-        aria-label="Đóng"
-      >
-        <X className="w-4 h-4" />
-      </button>
+        <span
+          className={`mt-0.5 shrink-0 ${isErr ? "text-red-500" : "text-emerald-500"}`}
+        >
+          {isErr ? (
+            <AlertCircle className="w-5 h-5" />
+          ) : (
+            <CheckCircle2 className="w-5 h-5" />
+          )}
+        </span>
+        <p className="flex-1 text-sm font-medium leading-snug">{message}</p>
+        <button
+          onClick={onClose}
+          className={`shrink-0 p-1 rounded-lg transition-colors ${isErr ? "hover:bg-red-100" : "hover:bg-emerald-100"}`}
+          aria-label="Đóng"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
     </div>
   );
 }

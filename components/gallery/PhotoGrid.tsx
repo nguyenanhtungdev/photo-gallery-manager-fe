@@ -136,6 +136,7 @@ export default function PhotoGrid({ project }: PhotoGridProps) {
   const [cols, setCols] = useState<1 | 2 | 3>(3)
   const loadMoreRef = useRef<HTMLDivElement | null>(null)
   const isPaid = project.status === 'paid'
+  const isPhotoStorageExpired = Boolean(project.isPhotoStorageExpired)
   const previewWidth = project.effectiveImageResizeWidth !== undefined
     ? project.effectiveImageResizeWidth
     : project.imageResizeWidth ?? 720
@@ -266,9 +267,13 @@ export default function PhotoGrid({ project }: PhotoGridProps) {
     </div>
   )
 
+  if (isPhotoStorageExpired) {
+    return null
+  }
+
   return (
     <>
-      {isPaid ? (
+      {isPaid && project.photos.length > 0 ? (
         /* ── Paid: everything on ONE row ── */
         <div className="gallery-action-bar mb-4">
           <div className="flex items-center gap-2">
@@ -356,10 +361,14 @@ export default function PhotoGrid({ project }: PhotoGridProps) {
             </div>
           )}
         </div>
-      ) : (
+      ) : !isPaid && project.photos.length > 0 ? (
         /* ── Unpaid: just toggle, right-aligned ── */
         <div className="mb-3 flex justify-end">
           {ColsToggle}
+        </div>
+      ) : (
+        <div className="rounded-2xl border border-border bg-white px-4 py-10 text-center text-sm text-muted-foreground shadow-sm">
+          Chưa có ảnh để hiển thị
         </div>
       )}
 

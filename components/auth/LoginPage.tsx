@@ -46,27 +46,29 @@ function Toast({
 }) {
   const isErr = type === "error";
   return (
-    <div
-      className={`fixed top-4 left-1/2 z-50 flex w-full max-w-sm -translate-x-1/2 items-start gap-3 rounded-2xl border px-4 py-3.5 shadow-xl animate-[fadeSlideDown_0.25s_ease-out] max-w-[calc(100vw-2rem)] ${isErr ? "border-red-200 bg-red-50 text-red-700" : "border-emerald-200 bg-emerald-50 text-emerald-700"}`}
-    >
-      <span
-        className={`mt-0.5 shrink-0 ${isErr ? "text-red-500" : "text-emerald-500"}`}
+    <div className="pointer-events-none fixed inset-x-0 top-4 z-50 flex justify-center px-4">
+      <div
+        className={`pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-2xl border px-4 py-3.5 shadow-xl animate-[authToastIn_0.22s_cubic-bezier(0.16,1,0.3,1)_both] ${isErr ? "border-red-200 bg-red-50 text-red-700" : "border-emerald-200 bg-emerald-50 text-emerald-700"}`}
       >
-        {isErr ? (
-          <AlertCircle className="w-5 h-5" />
-        ) : (
-          <CheckCircle2 className="w-5 h-5" />
-        )}
-      </span>
-      <p className="flex-1 text-sm font-medium leading-snug">{message}</p>
-      <button
-        type="button"
-        onClick={onClose}
-        aria-label="Đóng"
-        className={`shrink-0 rounded-lg p-1 transition-colors ${isErr ? "hover:bg-red-100" : "hover:bg-emerald-100"}`}
-      >
-        <X className="w-4 h-4" />
-      </button>
+        <span
+          className={`mt-0.5 shrink-0 ${isErr ? "text-red-500" : "text-emerald-500"}`}
+        >
+          {isErr ? (
+            <AlertCircle className="w-5 h-5" />
+          ) : (
+            <CheckCircle2 className="w-5 h-5" />
+          )}
+        </span>
+        <p className="flex-1 text-sm font-medium leading-snug">{message}</p>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Đóng"
+          className={`shrink-0 rounded-lg p-1 transition-colors ${isErr ? "hover:bg-red-100" : "hover:bg-emerald-100"}`}
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
     </div>
   );
 }

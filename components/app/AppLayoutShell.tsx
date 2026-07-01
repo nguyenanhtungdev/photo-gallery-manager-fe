@@ -23,7 +23,7 @@ export function AppLayoutShell({
   navItems,
   pageMeta,
   logoutPath,
-  portalLabel = 'Portal',
+  portalLabel = 'Cổng thông tin',
   notificationBadgeCount = 0,
 }: {
   children: React.ReactNode
@@ -54,7 +54,7 @@ export function AppLayoutShell({
             <Camera className="h-5 w-5 text-white" />
           </div>
           <div>
-            <p className="text-sm font-bold leading-none text-foreground">Photo Gallery</p>
+            <p className="text-sm font-bold leading-none text-foreground">Thư viện ảnh</p>
             <p className="mt-0.5 text-xs text-muted-foreground">{portalLabel}</p>
           </div>
         </div>

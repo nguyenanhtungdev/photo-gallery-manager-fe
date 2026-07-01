@@ -15,7 +15,7 @@ import {
   CheckCircle2, Copy, ExternalLink, MoreHorizontal,
   X, Check, Trash2, ChevronRight, ChevronLeft, CalendarRange,
   LayoutGrid, Columns2, Square,
-  Ban,
+  Ban, Hash,
 } from 'lucide-react'
 import {
   createProject,
@@ -1206,7 +1206,7 @@ export default function ProjectsPage() {
             <input
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Tìm project, khách hàng, số điện thoại..."
+              placeholder="Tìm mã project, tên, khách hàng, số điện thoại..."
               className="h-10 w-full rounded-xl bg-transparent pl-11 pr-4 text-[15px] outline-none placeholder:text-muted-foreground/60 md:h-auto md:rounded-none md:py-3 md:pl-10 md:text-sm"
             />
           </div>
@@ -1341,6 +1341,15 @@ export default function ProjectsPage() {
 
                     {/* Row 2: metadata */}
                     <div className="mt-2 flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+                        {project.projectCode && (
+                          <>
+                            <span className="inline-flex flex-shrink-0 items-center gap-0.5 rounded-md bg-slate-100 px-1.5 py-0.5 font-semibold text-slate-700">
+                              <Hash className="h-3 w-3" />
+                              {project.projectCode}
+                            </span>
+                            <span className="text-slate-300">•</span>
+                          </>
+                        )}
                         {project.clientName && (
                           <span className="font-semibold text-slate-700 dark:text-slate-300 truncate max-w-[120px]">{project.clientName}</span>
                         )}
@@ -1415,6 +1424,12 @@ export default function ProjectsPage() {
                     <p className="truncate text-sm font-semibold leading-snug transition-colors group-hover:text-primary">
                       {project.name}
                     </p>
+                    {project.projectCode && (
+                      <p className="mt-1 inline-flex max-w-full items-center gap-1 rounded-md bg-white/80 px-2 py-0.5 text-[11px] font-semibold text-slate-600 ring-1 ring-slate-200">
+                        <Hash className="h-3 w-3 shrink-0" />
+                        <span className="truncate">{project.projectCode}</span>
+                      </p>
+                    )}
                     <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground min-w-0 gap-1.5">
                       <span className="truncate font-semibold text-slate-700 dark:text-slate-300">
                         {project.clientName || 'Khách vãng lai'}

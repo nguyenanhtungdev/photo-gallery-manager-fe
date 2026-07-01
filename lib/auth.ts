@@ -7,6 +7,7 @@ import type { WatermarkSettings } from "./watermark-settings";
 export type AuthUser = {
   id: string;
   name: string | null;
+  phone?: string | null;
   email: string;
   username: string;
   role: "admin" | "user";
@@ -194,6 +195,8 @@ export async function fetchCurrentUser(accessToken: string) {
 }
 
 export async function updateUserSettings(payload: {
+  name?: string | null;
+  phone?: string | null;
   imageResizeWidth?: ImageResizeSetting;
   avatarKey?: string | null;
   watermarkSettings?: WatermarkSettings;
@@ -261,7 +264,14 @@ export async function uploadFileToPresignedUrl(
 export async function apiFetch(path: string, init: RequestInit = {}) {
   const session = getStoredSession();
   if (!session?.accessToken) {
-    throw new Error("Vui long dang nhap lai");
+    if (typeof window !== "undefined") {
+      const loginPath = session?.user?.role === "admin" ? "/admin/login" : "/login";
+      const currentPath = `${window.location.pathname}${window.location.search}`;
+      if (window.location.pathname !== loginPath) {
+        window.location.replace(`${loginPath}?next=${encodeURIComponent(currentPath)}`);
+      }
+    }
+    throw new Error("Phiên đăng nhập đã hết hạn");
   }
 
   return requestWithSession(path, init, session, true);

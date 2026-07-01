@@ -87,7 +87,6 @@ export default function NotificationsPage() {
 
         setNotifications(data.notifications);
         setUnreadCount(data.unreadCount);
-        emitUnreadNotificationsCount(data.unreadCount);
         setNextOffset(data.pagination.nextOffset);
         setHasMore(data.pagination.hasMore);
         setError(null);
@@ -110,6 +109,10 @@ export default function NotificationsPage() {
       active = false;
     };
   }, []);
+
+  useEffect(() => {
+    emitUnreadNotificationsCount(unreadCount);
+  }, [unreadCount]);
 
   useEffect(() => {
     function handleNotificationCreated(event: Event) {
@@ -207,7 +210,6 @@ export default function NotificationsPage() {
 
       setNotifications((current) => [...current, ...data.notifications]);
       setUnreadCount(data.unreadCount);
-      emitUnreadNotificationsCount(data.unreadCount);
       setNextOffset(data.pagination.nextOffset);
       setHasMore(data.pagination.hasMore);
       setError(null);
@@ -249,9 +251,7 @@ export default function NotificationsPage() {
         current.map((item) => (item.id === updated.id ? updated : item)),
       );
       setUnreadCount((count) => {
-        const nextCount = Math.max(0, count - 1);
-        emitUnreadNotificationsCount(nextCount);
-        return nextCount;
+        return Math.max(0, count - 1);
       });
     } catch (err) {
       setError(
@@ -271,7 +271,6 @@ export default function NotificationsPage() {
         current.map((item) => ({ ...item, readAt: item.readAt ?? readAt })),
       );
       setUnreadCount(0);
-      emitUnreadNotificationsCount(0);
       setError(null);
     } catch (err) {
       setError(

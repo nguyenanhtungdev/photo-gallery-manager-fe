@@ -44,7 +44,6 @@ import {
   type WatermarkSettings,
 } from '@/lib/watermark-settings'
 
-const DEFAULT_PHONE = 'Chưa cập nhật'
 const WATERMARK_SAMPLE_IMAGE_SRC = '/image/watermark-sample.png'
 
 function formatRoleLabel(role?: 'admin' | 'user') {
@@ -495,27 +494,31 @@ function EditProfileInfoModal({
   email,
   onClose,
   onSave,
+  submitting,
+  error,
 }: {
   initialName: string
   initialPhone: string
   email: string
   onClose: () => void
-  onSave: (payload: { name: string; phone: string }) => void
+  onSave: (payload: { name: string; phone: string }) => Promise<void>
+  submitting: boolean
+  error: string | null
 }) {
   const [draftName, setDraftName] = useState(initialName)
   const [draftPhone, setDraftPhone] = useState(initialPhone)
 
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
-    onSave({
+    void onSave({
       name: draftName.trim(),
-      phone: draftPhone.trim() || DEFAULT_PHONE,
+      phone: draftPhone.trim(),
     })
   }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 pb-24 sm:p-4">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={submitting ? undefined : onClose} />
 
       <div className="relative z-10 w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
@@ -528,6 +531,7 @@ function EditProfileInfoModal({
           <button
             type="button"
             onClick={onClose}
+            disabled={submitting}
             className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary transition-colors hover:bg-secondary/80"
           >
             <X className="h-4 w-4 text-muted-foreground" />
@@ -539,6 +543,7 @@ function EditProfileInfoModal({
             <input
               value={draftName}
               onChange={(event) => setDraftName(event.target.value)}
+              disabled={submitting}
               className="w-full rounded-xl border border-border bg-secondary/40 py-2.5 pl-9 pr-3 text-sm outline-none transition-all focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/15"
             />
           </Field>
@@ -548,9 +553,16 @@ function EditProfileInfoModal({
               value={draftPhone}
               onChange={(event) => setDraftPhone(event.target.value)}
               type="tel"
+              disabled={submitting}
               className="w-full rounded-xl border border-border bg-secondary/40 py-2.5 pl-9 pr-3 text-sm outline-none transition-all focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/15"
             />
           </Field>
+
+          {error ? (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-600">
+              {error}
+            </div>
+          ) : null}
 
           <div className="rounded-xl bg-secondary/40 p-3 text-sm">
             <div>
@@ -563,15 +575,17 @@ function EditProfileInfoModal({
             <button
               type="button"
               onClick={onClose}
+              disabled={submitting}
               className="flex-1 rounded-xl border border-border py-3 text-sm font-medium transition-colors hover:bg-secondary/50"
             >
               Hủy
             </button>
             <button
               type="submit"
-              className="flex-1 rounded-xl bg-primary py-3 text-sm font-semibold text-white shadow-sm shadow-primary/20 transition-all hover:bg-primary/90 active:scale-[0.98]"
+              disabled={submitting}
+              className="flex-1 rounded-xl bg-primary py-3 text-sm font-semibold text-white shadow-sm shadow-primary/20 transition-all hover:bg-primary/90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Lưu thay đổi
+              {submitting ? 'Đang lưu...' : 'Lưu thay đổi'}
             </button>
           </div>
         </form>
@@ -595,7 +609,7 @@ export function ProfilePage({
   const [name, setName] = useState(sessionUser?.name || sessionUser?.username || '')
   const [email] = useState(sessionUser?.email || '')
   const [username] = useState(sessionUser?.username || '')
-  const [phone, setPhone] = useState(DEFAULT_PHONE)
+  const [phone, setPhone] = useState(sessionUser?.phone || '')
   const [role] = useState<'admin' | 'user'>(sessionUser?.role ?? 'user')
   const [joinedAt] = useState(sessionUser ? formatJoinDate(sessionUser.createdAt) : '')
   const [avatarUrl, setAvatarUrl] = useState(sessionUser?.avatarUrl || null)
@@ -604,6 +618,8 @@ export function ProfilePage({
   const [avatarError, setAvatarError] = useState<string | null>(null)
   const [avatarSaved, setAvatarSaved] = useState(false)
   const [infoSaved, setInfoSaved] = useState(false)
+  const [infoError, setInfoError] = useState<string | null>(null)
+  const [savingInfo, setSavingInfo] = useState(false)
   const [showEditInfoModal, setShowEditInfoModal] = useState(false)
   const [settingsSaved, setSettingsSaved] = useState(false)
   const [settingsError, setSettingsError] = useState<string | null>(null)
@@ -643,6 +659,10 @@ export function ProfilePage({
         }
 
         setAvatarUrl(user.avatarUrl ?? null)
+        setName(user.name || user.username || '')
+        setPhone(user.phone || '')
+        setImageResizeWidth(user.imageResizeWidth ?? DEFAULT_IMAGE_RESIZE_WIDTH)
+        setDraftImageResizeWidth(user.imageResizeWidth ?? DEFAULT_IMAGE_RESIZE_WIDTH)
         const nextWatermarkSettings = normalizeWatermarkSettings(user.watermarkSettings)
         setWatermarkSettings(nextWatermarkSettings)
         setDraftWatermarkSettings(nextWatermarkSettings)
@@ -659,12 +679,27 @@ export function ProfilePage({
     }
   }, [])
 
-  function handleSaveInfo(payload: { name: string; phone: string }) {
-    setName(payload.name || username)
-    setPhone(payload.phone || DEFAULT_PHONE)
-    setShowEditInfoModal(false)
-    setInfoSaved(true)
-    setTimeout(() => setInfoSaved(false), 2500)
+  async function handleSaveInfo(payload: { name: string; phone: string }) {
+    setSavingInfo(true)
+    setInfoError(null)
+    setInfoSaved(false)
+
+    try {
+      const user = await updateUserSettings({
+        name: payload.name || null,
+        phone: payload.phone || null,
+      })
+
+      setName(user.name || user.username || username)
+      setPhone(user.phone || '')
+      setShowEditInfoModal(false)
+      setInfoSaved(true)
+      setTimeout(() => setInfoSaved(false), 2500)
+    } catch (err) {
+      setInfoError(err instanceof Error ? err.message : 'Không thể lưu thông tin cá nhân')
+    } finally {
+      setSavingInfo(false)
+    }
   }
 
   function handleLogout() {
@@ -858,7 +893,11 @@ export function ProfilePage({
           <h2 className="text-sm font-semibold">Thông tin cá nhân</h2>
           <button
             type="button"
-            onClick={() => setShowEditInfoModal(true)}
+            onClick={() => {
+              setInfoError(null)
+              setInfoSaved(false)
+              setShowEditInfoModal(true)
+            }}
             className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3 py-1.5 text-xs font-semibold text-white shadow-sm shadow-primary/20 transition-all hover:bg-primary/90 active:scale-95"
           >
             <Pencil className="h-3.5 w-3.5" /> Sửa
@@ -1047,8 +1086,13 @@ export function ProfilePage({
           initialName={name}
           initialPhone={phone}
           email={email}
-          onClose={() => setShowEditInfoModal(false)}
+          onClose={() => {
+            setInfoError(null)
+            setShowEditInfoModal(false)
+          }}
           onSave={handleSaveInfo}
+          submitting={savingInfo}
+          error={infoError}
         />
       ) : null}
     </div>

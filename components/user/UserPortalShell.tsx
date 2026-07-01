@@ -15,17 +15,17 @@ import {
 import { subscribeToNotificationsRealtime } from '@/lib/notifications-realtime'
 
 const navItems = [
-  { href: '/projects', icon: FolderOpen, label: 'Projects' },
-  { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+  { href: '/projects', icon: FolderOpen, label: 'Dự án' },
+  { href: '/dashboard', icon: LayoutDashboard, label: 'Tổng quan' },
   { href: '/notifications', icon: Bell, label: 'Thông báo' },
-  { href: '/profile', icon: UserCircle2, label: 'Profile' },
+  { href: '/profile', icon: UserCircle2, label: 'Hồ sơ' },
 ]
 
 const PAGE_META: Record<string, { title: string; subtitle: string }> = {
-  '/dashboard': { title: 'Dashboard', subtitle: 'Thống kê cá nhân' },
-  '/projects': { title: 'Projects', subtitle: 'Quản lý danh sách project' },
+  '/dashboard': { title: 'Tổng quan', subtitle: 'Thống kê cá nhân' },
+  '/projects': { title: 'Dự án', subtitle: 'Quản lý danh sách dự án' },
   '/notifications': { title: 'Thông báo', subtitle: 'Lịch sử sự kiện tài khoản' },
-  '/profile': { title: 'Profile', subtitle: 'Quản lý thông tin tài khoản' },
+  '/profile': { title: 'Hồ sơ', subtitle: 'Quản lý thông tin tài khoản' },
 }
 
 export function UserPortalShell({ children }: { children: React.ReactNode }) {
@@ -86,7 +86,7 @@ export function UserPortalShell({ children }: { children: React.ReactNode }) {
         navItems={navItems}
         pageMeta={PAGE_META}
         logoutPath="/login"
-        portalLabel="User Portal"
+        portalLabel="Cổng người dùng"
         notificationBadgeCount={unreadCount}
       >
         {children}

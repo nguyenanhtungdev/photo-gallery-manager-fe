@@ -14,7 +14,7 @@ import {
 import type { Project } from "@/lib/mock-data";
 import { getProjectStatusMeta, isProjectCancelled } from "@/lib/project-status";
 import { ProjectStatusIcon } from "@/lib/project-status-icons";
-import { maskPhone } from "@/lib/utils";
+import { formatCurrency, formatDate, maskPhone } from "@/lib/utils";
 import PhotoGrid from "@/components/gallery/PhotoGrid";
 import { subscribeToProjectShareRealtime } from "@/lib/project-share-realtime";
 
@@ -29,6 +29,11 @@ export default function GalleryPageClient({
   const isPaid = project.status === "paid";
   const isCancelled = isProjectCancelled(project.status);
   const statusMeta = getProjectStatusMeta(project.status);
+  const isPhotoStorageExpired = Boolean(project.isPhotoStorageExpired);
+  const paidDateLabel = project.paidAt ? formatDate(project.paidAt) : null;
+  const photosCleanedDateLabel = project.photosCleanedAt
+    ? formatDate(project.photosCleanedAt)
+    : null;
   const thankYouStorageKey = `gallery-thank-you-seen:${initialProject.shareToken}`;
 
   const openThankYouCard = useCallback((unlockedNow = false) => {
@@ -52,7 +57,8 @@ export default function GalleryPageClient({
         setProject((currentProject) => {
           if (
             currentProject.status !== "paid" &&
-            nextProject.status === "paid"
+            nextProject.status === "paid" &&
+            !nextProject.isPhotoStorageExpired
           ) {
             openThankYouCard(true);
           }
@@ -64,7 +70,11 @@ export default function GalleryPageClient({
   }, [initialProject.shareToken, openThankYouCard]);
 
   useEffect(() => {
-    if (typeof window === "undefined" || initialProject.status !== "paid") {
+    if (
+      typeof window === "undefined" ||
+      initialProject.status !== "paid" ||
+      initialProject.isPhotoStorageExpired
+    ) {
       return;
     }
 
@@ -73,7 +83,7 @@ export default function GalleryPageClient({
     }, 0);
 
     return () => window.clearTimeout(timer);
-  }, [initialProject.status, openThankYouCard]);
+  }, [initialProject.isPhotoStorageExpired, initialProject.status, openThankYouCard]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -94,7 +104,7 @@ export default function GalleryPageClient({
                 <Sparkles className="h-7 w-7" />
               </div>
               <p className="mt-5 text-xs font-semibold uppercase tracking-[0.18em] text-white/75">
-                Thank You
+                Cảm ơn
               </p>
               <h2 className="mt-2 text-2xl font-bold leading-tight">
                 Cảm ơn quý khách đã sử dụng dịch vụ
@@ -175,11 +185,11 @@ export default function GalleryPageClient({
             </div>
             <div className={`gallery-stat-pill ${isPaid ? "gallery-stat-pill-green" : "gallery-stat-pill-amber"}`}>
                 <Shield className="h-3.5 w-3.5 opacity-80" />
-              <span>{isPaid ? "Watermark TẮT" : isCancelled ? "Project đã hủy" : "Watermark BẬT"}</span>
+              <span>{isPhotoStorageExpired ? "Ảnh đã quá hạn" : isPaid ? "Watermark TẮT" : isCancelled ? "Project đã hủy" : "Watermark BẬT"}</span>
             </div>
             <div className={`gallery-stat-pill ${isPaid ? "gallery-stat-pill-green" : ""}`}>
               <Download className="h-3.5 w-3.5 opacity-80" />
-              <span>{isPaid ? "Có thể tải xuống" : "Chưa mở tải xuống"}</span>
+              <span>{isPhotoStorageExpired ? "Không còn lưu trữ" : isPaid ? "Có thể tải xuống" : "Chưa mở tải xuống"}</span>
             </div>
           </div>
         </div>
@@ -187,6 +197,77 @@ export default function GalleryPageClient({
 
       {/* ── Body ── */}
       <div className="mx-auto max-w-5xl space-y-6 px-4 py-8">
+        {/* Paid success card */}
+        {isPaid && (
+          <div className="overflow-hidden rounded-2xl border border-emerald-200 bg-emerald-50 shadow-sm">
+            <div className="flex flex-col gap-4 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+              <div className="flex items-start gap-3.5">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200">
+                  <CheckCircle2 className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-sm font-bold text-emerald-900">
+                      Thanh toán thành công
+                    </p>
+                    {typeof project.paidAmount === "number" ? (
+                      <span className="inline-flex items-center rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-200">
+                        {formatCurrency(project.paidAmount)}
+                      </span>
+                    ) : null}
+                  </div>
+                  <p className="mt-1 text-sm leading-6 text-emerald-800/80">
+                    {isPhotoStorageExpired
+                      ? "Thanh toán đã được ghi nhận, nhưng bộ ảnh đã quá hạn lưu trữ và không còn trên hệ thống."
+                      : "Gallery đã được mở khóa. Quý khách có thể xem ảnh không watermark và tải bộ ảnh gốc."}
+                  </p>
+                  {paidDateLabel ? (
+                    <p className="mt-1 text-sm font-medium text-emerald-800">
+                      Ngày thanh toán: {paidDateLabel}
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+
+              {!isPhotoStorageExpired ? (
+                <div className="flex flex-wrap gap-2 pl-14 sm:justify-end sm:pl-0">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-200">
+                    <Shield className="h-3.5 w-3.5" />
+                    Không watermark
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-200">
+                    <Download className="h-3.5 w-3.5" />
+                    Tải ảnh gốc
+                  </span>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        )}
+
+        {isPhotoStorageExpired ? (
+          <div className="overflow-hidden rounded-2xl border border-amber-200 bg-amber-50 shadow-sm">
+            <div className="flex items-start gap-3.5 px-4 py-4 sm:px-5">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700 ring-1 ring-amber-200">
+                <AlertTriangle className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-amber-900">
+                  Ảnh đã quá hạn lưu trữ
+                </p>
+                <p className="mt-1 text-sm leading-6 text-amber-800/80">
+                  Bộ ảnh đã được xóa khỏi hệ thống theo chính sách lưu trữ sau thanh toán, nên hiện không còn ảnh để xem hoặc tải xuống.
+                </p>
+                {photosCleanedDateLabel ? (
+                  <p className="mt-1 text-xs font-medium text-amber-800">
+                    Thời điểm ghi nhận: {photosCleanedDateLabel}
+                  </p>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        ) : null}
+
         {/* Unpaid warning card */}
         {!isPaid && (
           <div className="gallery-warning-card">
@@ -219,7 +300,7 @@ export default function GalleryPageClient({
         )}
 
         {/* Photo Grid */}
-        <PhotoGrid project={project} />
+        {!isPhotoStorageExpired ? <PhotoGrid project={project} /> : null}
 
         {/* Footer */}
         <div className="border-t border-border pt-6 pb-4">
